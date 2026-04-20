@@ -1,0 +1,19 @@
+{
+  "name": "mantis-preference",
+  "description": "M6 Bayesian Preference Accumulation. Per-(developer, rule) Beta-Binomial posteriors updated on accept/reject signals; Thompson-sampled surfacing with a 5% minimum floor (no rule dies permanently from accumulated rejections). The Gauss Accumulation pattern, academically grounded.",
+  "version": "0.1.0",
+  "author": {
+    "name": "enchanted-plugins"
+  },
+  "license": "MIT",
+  "keywords": [
+    "preference-learning",
+    "bayesian",
+    "thompson-sampling",
+    "personalization"
+  ],
+  "skills": [
+    "./skills/mantis-disable/"
+  ],
+  "agents": "./agents/"
+}

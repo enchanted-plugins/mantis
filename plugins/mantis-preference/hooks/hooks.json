@@ -1,0 +1,17 @@
+{
+  "description": "mantis-preference hooks — advisory-only. PostToolUse detects developer accept/reject signals (via UI interactions, Write/Edit reverting a Mantis-suggested change, etc.) and routes to the updater. See @shared/conduct/hooks.md.",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PLUGIN_ROOT/hooks/dispatch.sh\" mantis-preference-update",
+            "timeout": 3000
+          }
+        ]
+      }
+    ]
+  }
+}
