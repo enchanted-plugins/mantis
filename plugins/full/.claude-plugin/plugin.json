@@ -1,0 +1,23 @@
+{
+  "name": "full",
+  "description": "Meta-plugin. One install pulls in all 7 Mantis sub-plugins via dependency resolution: mantis-core, mantis-sandbox, mantis-preference, mantis-rubric, mantis-python, mantis-typescript, mantis-verdict.",
+  "version": "0.1.0",
+  "author": {
+    "name": "enchanted-plugins"
+  },
+  "license": "MIT",
+  "keywords": [
+    "meta",
+    "full-install",
+    "mantis"
+  ],
+  "dependencies": [
+    "mantis-core",
+    "mantis-sandbox",
+    "mantis-preference",
+    "mantis-rubric",
+    "mantis-python",
+    "mantis-typescript",
+    "mantis-verdict"
+  ]
+}
