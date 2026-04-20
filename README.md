@@ -138,6 +138,22 @@ Slash commands:
 
 ## What You Get Per Review
 
+Write/Edit events flow through four journals — one per review-pipeline engine — and converge on the enchanted-mcp bus and the developer query surface. Color maps engines to journals: blue = mantis-core (M1+M2 static suspicion) · red = mantis-sandbox (M5 runtime confirmation) · purple = mantis-preference (M6 Bayesian learning) · yellow = mantis-rubric (M7 judgment).
+
+<p align="center">
+  <a href="docs/assets/state-flow.mmd" title="View state-flow diagram source (Mermaid)">
+    <img src="docs/assets/state-flow.svg"
+         alt="Mantis per-review state flow: PostToolUse (Write/Edit/MultiEdit) and end-of-PR events feed four color-coded journals (mantis-core findings + metrics, mantis-sandbox executions + metrics, mantis-preference posteriors + learnings + accept/reject events, mantis-rubric verdicts + metrics) which converge on the enchanted-mcp bus and the /mantis-{review,explain,disable} query surface"
+         width="100%" style="max-width:1100px;">
+  </a>
+</p>
+
+<sub align="center">
+
+Source: [docs/assets/state-flow.mmd](docs/assets/state-flow.mmd) · Regeneration command in [docs/assets/README.md](docs/assets/README.md).
+
+</sub>
+
 ```
 plugins/mantis-core/state/
 ├── findings.jsonl           M1+M2 flagged hunks with interval + diff cluster metadata

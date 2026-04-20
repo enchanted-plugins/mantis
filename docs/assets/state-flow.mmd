@@ -1,0 +1,88 @@
+---
+title: Mantis per-review state flow
+config:
+  look: neo
+  theme: dark
+  flowchart:
+    curve: basis
+    padding: 18
+    nodeSpacing: 44
+    rankSpacing: 54
+    htmlLabels: true
+    subGraphTitleMargin:
+      top: 14
+      bottom: 18
+---
+flowchart TB
+    TitleBlock["<div style='font-family:ui-monospace,SFMono-Regular,Consolas,monospace;text-align:center;min-width:940px;padding:6px 10px;line-height:1.8'><div style='color:#58a6ff;font-size:15px;letter-spacing:6px;border-bottom:1px solid #1e3a5f;padding-bottom:10px;margin-bottom:10px'>MANTIS &nbsp;·&nbsp; STATE&nbsp;FLOW &nbsp;·&nbsp; REVIEW&nbsp;JOURNALS</div><div style='display:flex;gap:40px;justify-content:center;font-size:11px;color:#8b949e;letter-spacing:2px'><span>DWG&nbsp;&nbsp;<b style='color:#e6edf3'>MNT-003</b></span><span>REV&nbsp;&nbsp;<b style='color:#e6edf3'>A.1</b></span><span>SCALE&nbsp;&nbsp;<b style='color:#e6edf3'>1:1</b></span><span>JOURNALS&nbsp;&nbsp;<b style='color:#e6edf3'>n&nbsp;=&nbsp;4</b></span><span>SHEET&nbsp;&nbsp;<b style='color:#e6edf3'>01&nbsp;/&nbsp;01</b></span></div></div>"]
+
+    subgraph sources["<div style='text-align:center;min-width:940px;font-family:ui-monospace,monospace;color:#8b949e;font-size:11px;letter-spacing:3px'>EVENT&nbsp;SOURCES&nbsp;&nbsp;·&nbsp;&nbsp;HOOK&nbsp;FIRES</div>"]
+        direction LR
+        PostTool["<b>PostToolUse</b><br/><small style='color:#6e7681'>Write · Edit · MultiEdit</small>"]
+        EndPR["<b>end of PR</b><br/><small style='color:#6e7681'>/mantis-review</small>"]
+    end
+
+    subgraph core["<div style='text-align:center;min-width:940px;line-height:2'><span style='font-family:ui-monospace,monospace;color:#8b949e;font-size:11px;letter-spacing:3px'>JOURNAL&nbsp;01</span>&nbsp;&nbsp;·&nbsp;&nbsp;<b style='letter-spacing:2px'>mantis-core / state /</b></div>"]
+        direction LR
+        core_find["<div style='text-align:center;line-height:1.7'><code>findings.jsonl</code><br/><small style='color:#6e7681'>M1+M2 flagged hunks · interval + diff cluster</small></div>"]
+        core_met["<div style='text-align:center;line-height:1.7'><code>metrics.jsonl</code><br/><small style='color:#6e7681'>per-scan timing + hunk counts</small></div>"]
+    end
+
+    subgraph sbox["<div style='text-align:center;min-width:940px;line-height:2'><span style='font-family:ui-monospace,monospace;color:#8b949e;font-size:11px;letter-spacing:3px'>JOURNAL&nbsp;02</span>&nbsp;&nbsp;·&nbsp;&nbsp;<b style='letter-spacing:2px'>mantis-sandbox / state /</b></div>"]
+        direction LR
+        sbox_ex["<div style='text-align:center;line-height:1.7'><code>executions.jsonl</code><br/><small style='color:#6e7681'>M5 sandbox runs · exit code · rlimit + exceptions</small></div>"]
+        sbox_met["<div style='text-align:center;line-height:1.7'><code>metrics.jsonl</code><br/><small style='color:#6e7681'>run counts + avg latency</small></div>"]
+    end
+
+    subgraph pref["<div style='text-align:center;min-width:940px;line-height:2'><span style='font-family:ui-monospace,monospace;color:#8b949e;font-size:11px;letter-spacing:3px'>JOURNAL&nbsp;03</span>&nbsp;&nbsp;·&nbsp;&nbsp;<b style='letter-spacing:2px'>mantis-preference / state /</b></div>"]
+        direction LR
+        pref_post["<div style='text-align:center;line-height:1.7'><code>posteriors.json</code><br/><small style='color:#6e7681'>M6 per-(dev,rule) Beta α/β</small></div>"]
+        pref_learn["<div style='text-align:center;line-height:1.7'><code>learnings.json</code><br/><small style='color:#6e7681'>cross-session · α=0.05 slow accumulator</small></div>"]
+        pref_met["<div style='text-align:center;line-height:1.7'><code>metrics.jsonl</code><br/><small style='color:#6e7681'>accept/reject events</small></div>"]
+    end
+
+    subgraph rubr["<div style='text-align:center;min-width:940px;line-height:2'><span style='font-family:ui-monospace,monospace;color:#8b949e;font-size:11px;letter-spacing:3px'>JOURNAL&nbsp;04</span>&nbsp;&nbsp;·&nbsp;&nbsp;<b style='letter-spacing:2px'>mantis-rubric / state /</b></div>"]
+        direction LR
+        rubr_ver["<div style='text-align:center;line-height:1.7'><code>verdicts.jsonl</code><br/><small style='color:#6e7681'>M7 5-axis scores + Cohen's κ per review</small></div>"]
+        rubr_met["<div style='text-align:center;line-height:1.7'><code>metrics.jsonl</code><br/><small style='color:#6e7681'>rubric invocation metrics</small></div>"]
+    end
+
+    Bus["<div style='text-align:center;line-height:1.8;padding:4px 12px'><b style='letter-spacing:1.5px;color:#79c0ff'>ENCHANTED-MCP&nbsp;BUS</b><br/><em style='color:#8b949e;font-size:12px'>mantis.review.completed · mantis.finding.confirmed · mantis.rule.suppressed</em></div>"]
+    Query(["<b>/mantis-review · /mantis-explain · /mantis-disable</b><br/><small style='color:#8b949e'>skill-invoked pull surface</small>"])
+
+    TitleBlock ~~~ sources
+    PostTool --> core_find
+    PostTool --> core_met
+    core_find --> sbox_ex
+    sbox_ex --> sbox_met
+    PostTool --> pref_met
+    pref_met --> pref_post
+    pref_post --> pref_learn
+    EndPR --> rubr_ver
+    rubr_ver --> rubr_met
+    rubr_ver --> Bus
+    sbox_ex --> Bus
+    pref_learn --> Bus
+    core_find --> Query
+    sbox_ex --> Query
+    pref_post --> Query
+    rubr_ver --> Query
+
+    classDef titleBlock fill:#06111f,stroke:#1e3a5f,stroke-width:1px,color:#e6edf3,rx:4,ry:4
+    classDef sourceNode fill:#0a1628,stroke:#1e3a5f,stroke-width:1.5px,color:#e6edf3,rx:8,ry:8
+    classDef journalLine fill:#0a1628,stroke:#1e3a5f,stroke-width:1px,color:#c9d1d9,rx:6,ry:6
+    classDef busNode fill:#0f1d33,stroke:#79c0ff,stroke-width:2px,color:#79c0ff,rx:8,ry:8
+    classDef queryNode fill:#0f1d33,stroke:#3fb950,stroke-width:1.5px,color:#3fb950,rx:14,ry:14
+
+    class TitleBlock titleBlock
+    class PostTool,EndPR sourceNode
+    class core_find,core_met,sbox_ex,sbox_met,pref_post,pref_learn,pref_met,rubr_ver,rubr_met journalLine
+    class Bus busNode
+    class Query queryNode
+
+    style core fill:#0f1d33,stroke:#58a6ff,stroke-width:2px,color:#e6edf3,rx:12,ry:12
+    style sbox fill:#0f1d33,stroke:#d75952,stroke-width:2px,color:#e6edf3,rx:12,ry:12
+    style pref fill:#0f1d33,stroke:#bc8cff,stroke-width:2px,color:#e6edf3,rx:12,ry:12
+    style rubr fill:#0f1d33,stroke:#d29922,stroke-width:2px,color:#e6edf3,rx:12,ry:12
+
+    linkStyle default stroke:#8b949e,stroke-width:1.5px

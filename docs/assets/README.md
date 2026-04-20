@@ -10,6 +10,7 @@ root `README.md` references the files here as `<img>`.
 |------|--------|-----------|
 | `pipeline.svg` | `pipeline.mmd` | `npx -y @mermaid-js/mermaid-cli -i pipeline.mmd -o pipeline.svg -c mermaid.config.json -p puppeteer.config.json -b "#0a1628" -w 1800 && node apply-blueprint.js pipeline.svg` |
 | `lifecycle.svg` | `lifecycle.mmd` | `npx -y @mermaid-js/mermaid-cli -i lifecycle.mmd -o lifecycle.svg -c mermaid.config.json -p puppeteer.config.json -b "#0a1628" -w 1800 && node apply-blueprint.js lifecycle.svg` |
+| `state-flow.svg` | `state-flow.mmd` | `npx -y @mermaid-js/mermaid-cli -i state-flow.mmd -o state-flow.svg -c mermaid.config.json -p puppeteer.config.json -b "#0a1628" -w 1800 && node apply-blueprint.js state-flow.svg` |
 | `math/*.svg` | `render-math.js` | `npm install --prefix . mathjax-full && node render-math.js` |
 
 Run the commands from `docs/assets/` (paths are relative). The
