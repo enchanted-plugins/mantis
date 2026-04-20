@@ -1,0 +1,10 @@
+{
+  "name": "{{PLUGIN_SLUG}}-docs-toolchain",
+  "description": "Renderer toolchain for {{PluginName}} architecture diagrams and math. Dev-only — never imported at runtime.",
+  "private": true,
+  "devDependencies": {
+    "@mermaid-js/mermaid-cli": "^11.0.0",
+    "mathjax-full": "^3.2.1",
+    "puppeteer": "^23.0.0"
+  }
+}
