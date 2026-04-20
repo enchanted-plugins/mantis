@@ -1,0 +1,28 @@
+{
+  "description": "mantis-verdict hooks — advisory-only. Terminal step in the PostToolUse chain; composes the verdict after mantis-core + mantis-sandbox + mantis-rubric have all written their state. See @shared/conduct/hooks.md.",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PLUGIN_ROOT/hooks/dispatch.sh\" mantis-verdict-compose",
+            "timeout": 5000
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PLUGIN_ROOT/hooks/dispatch.sh\" mantis-verdict-session-rollup",
+            "timeout": 10000
+          }
+        ]
+      }
+    ]
+  }
+}

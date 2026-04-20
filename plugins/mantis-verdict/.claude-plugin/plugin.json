@@ -1,0 +1,16 @@
+{
+  "name": "mantis-verdict",
+  "description": "Cross-engine verdict synthesizer. Composes M1/M2/M5/M6/M7 outputs into DEPLOY/HOLD/FAIL verdicts per the threshold contract in CLAUDE.md. Publishes mantis.review.completed events (Phase 2) or writes to verdict.jsonl (Phase 1). Weaver's pre-commit gate subscribes; FAIL refuses auto-commit.",
+  "version": "0.1.0",
+  "author": {
+    "name": "enchanted-plugins"
+  },
+  "license": "MIT",
+  "keywords": [
+    "verdict",
+    "composition",
+    "event-emission",
+    "deploy-hold-fail"
+  ],
+  "agents": "./agents/"
+}
