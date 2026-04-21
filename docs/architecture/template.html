@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Mantis Verdict Report &mdash; ${repo_name} &mdash; ${session_date}</title>
+<style>
+  @page { size: A4 portrait; margin: 18mm; }
+  :root {
+    --bg: #0c0e13;
+    --bg-2: #141821;
+    --bg-3: #1c2230;
+    --fg: #e9eef7;
+    --fg-dim: #8b93a7;
+    --rule: #262d3c;
+    --teal: #5ed0c2;
+    --amber: #f2b77c;
+    --clay: #ea6767;
+    --violet: #a98ad6;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg); color: var(--fg);
+    font-family: var(--sans);
+    font-size: 10.5pt; line-height: 1.45;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+    color-scheme: dark;
+  }
+  h1, h2, h3 { font-weight: 600; letter-spacing: -0.01em; margin-top: 1.4em; }
+  h1 { font-size: 22pt; margin: 0 0 0.2em; color: var(--fg); }
+  h2 { font-size: 14pt; color: var(--teal); border-bottom: 1px solid var(--rule); padding-bottom: 4px; }
+  h3 { font-size: 11pt; color: var(--amber); }
+  .meta { color: var(--fg-dim); font-family: var(--mono); font-size: 9pt; }
+  .cover { min-height: 240mm; page-break-after: always; padding-top: 20mm; }
+  .kicker { font-family: var(--mono); color: var(--teal); letter-spacing: 0.18em; text-transform: uppercase; font-size: 9pt; }
+  .cover-sub { color: var(--fg-dim); font-size: 11pt; margin-top: 6px; }
+  .verdict-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 28px; }
+  .summary-card { background: var(--bg-2); border: 1px solid var(--rule); border-radius: 6px; padding: 14px 16px; }
+  .summary-card .num { font-family: var(--mono); font-size: 28pt; line-height: 1; }
+  .summary-card .label { font-size: 9pt; color: var(--fg-dim); text-transform: uppercase; letter-spacing: 0.1em; margin-top: 6px; }
+  .deploy .num { color: var(--teal); }
+  .hold .num { color: var(--amber); }
+  .fail .num { color: var(--clay); }
+  .chip {
+    display: inline-block; padding: 2px 8px; border-radius: 10px;
+    font-family: var(--mono); font-size: 8.5pt; font-weight: 600; line-height: 1.4;
+    margin-right: 4px;
+  }
+  .chip-deploy { background: rgba(94, 208, 194, 0.14); color: var(--teal); border: 1px solid rgba(94, 208, 194, 0.35); }
+  .chip-hold   { background: rgba(242, 183, 124, 0.14); color: var(--amber); border: 1px solid rgba(242, 183, 124, 0.35); }
+  .chip-fail   { background: rgba(234, 103, 103, 0.14); color: var(--clay); border: 1px solid rgba(234, 103, 103, 0.35); }
+  .chip-engine { background: var(--bg-3); color: var(--fg-dim); border: 1px solid var(--rule); }
+  .chip-engine.ran { color: var(--teal); border-color: rgba(94, 208, 194, 0.35); }
+  .chip-engine.unsupported { color: var(--amber); border-color: rgba(242, 183, 124, 0.35); }
+  .chip-engine.fail { color: var(--clay); border-color: rgba(234, 103, 103, 0.35); }
+  table { width: 100%; border-collapse: collapse; margin: 8px 0 16px; font-size: 9pt; }
+  th, td { text-align: left; padding: 7px 9px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  th { color: var(--fg-dim); font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; font-size: 8pt; }
+  td.mono, th.mono { font-family: var(--mono); }
+  td.file { font-family: var(--mono); font-size: 8.5pt; color: var(--fg); }
+  td.reason { color: var(--fg-dim); font-size: 8.5pt; }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  .panel { background: var(--bg-2); border: 1px solid var(--rule); border-radius: 6px; padding: 14px 16px; }
+  .panel h3 { margin-top: 0; }
+  .bar-row { display: flex; align-items: center; gap: 8px; margin: 4px 0; font-size: 9pt; }
+  .bar-label { font-family: var(--mono); width: 120px; color: var(--fg-dim); flex-shrink: 0; }
+  .bar-count { font-family: var(--mono); width: 36px; text-align: right; color: var(--fg); flex-shrink: 0; }
+  .bar-track { flex: 1; height: 8px; background: var(--bg-3); border-radius: 2px; overflow: hidden; }
+  .bar-fill { height: 100%; background: var(--teal); }
+  .bar-fill.amber { background: var(--amber); }
+  .bar-fill.clay { background: var(--clay); }
+  .bar-fill.violet { background: var(--violet); }
+  svg.radar, svg.pie { display: block; margin: 0 auto; max-width: 100%; }
+  .legend { font-family: var(--mono); font-size: 8.5pt; color: var(--fg-dim); display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; margin-top: 6px; }
+  .legend-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; vertical-align: middle; }
+  details { background: var(--bg-2); border: 1px solid var(--rule); border-radius: 6px; padding: 8px 14px; margin-top: 10px; }
+  details > summary { cursor: pointer; color: var(--teal); font-family: var(--mono); font-size: 9pt; }
+  pre.dump { background: var(--bg-3); padding: 10px; border-radius: 4px; overflow-x: auto; font-family: var(--mono); font-size: 8pt; color: var(--fg-dim); white-space: pre-wrap; word-break: break-all; }
+  ul.learnings { list-style: none; padding: 0; margin: 0; }
+  ul.learnings li { padding: 6px 0; border-bottom: 1px solid var(--rule); font-size: 9pt; }
+  ul.learnings li:last-child { border-bottom: none; }
+  .fcode { font-family: var(--mono); color: var(--violet); font-weight: 600; margin-right: 6px; }
+  .footer { margin-top: 24px; padding-top: 10px; border-top: 1px solid var(--rule); color: var(--fg-dim); font-family: var(--mono); font-size: 8pt; }
+  .unstable { color: var(--clay); }
+  .stable { color: var(--teal); }
+  section { page-break-inside: avoid; }
+</style>
+</head>
+<body>
+
+<section class="cover">
+  <div class="kicker">Mantis Review Report</div>
+  <h1>${repo_name}</h1>
+  <div class="cover-sub">Session ${session_date} &middot; ${file_count} file(s) reviewed &middot; rubric v${rubric_version}</div>
+
+  <div class="verdict-summary">
+    <div class="summary-card deploy">
+      <div class="num">${deploy_count}</div>
+      <div class="label">Deploy</div>
+    </div>
+    <div class="summary-card hold">
+      <div class="num">${hold_count}</div>
+      <div class="label">Hold</div>
+    </div>
+    <div class="summary-card fail">
+      <div class="num">${fail_count}</div>
+      <div class="label">Fail</div>
+    </div>
+  </div>
+
+  <h3>Confidence distribution</h3>
+  ${confidence_bars}
+
+  <div class="meta" style="margin-top: 36px;">
+    Generated by docs/architecture/generate.py &middot; ${generated_ts}<br>
+    State sources: verdict.jsonl &middot; review-flags.jsonl &middot; run-log.jsonl &middot; kappa-log.jsonl &middot; preference learnings.json
+  </div>
+</section>
+
+<section>
+  <h2>Per-file verdicts</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>File</th>
+        <th>Verdict</th>
+        <th>Confidence</th>
+        <th>Engines</th>
+        <th>Primary reason</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${verdict_rows}
+    </tbody>
+  </table>
+</section>
+
+<section>
+  <h2>Engine breakdowns</h2>
+  <div class="two-col">
+    <div class="panel">
+      <h3>M1 &mdash; Cousot Interval Propagation</h3>
+      <div class="meta">Flags by rule (${m1_total} total)</div>
+      ${m1_rule_bars}
+    </div>
+    <div class="panel">
+      <h3>M5 &mdash; Bounded Subprocess Dry-Run</h3>
+      <div class="meta">Outcome class distribution (${m5_total} runs)</div>
+      ${m5_pie_svg}
+      ${m5_legend}
+    </div>
+  </div>
+
+  <div class="two-col" style="margin-top: 14px;">
+    <div class="panel">
+      <h3>M6 &mdash; Bayesian Preference Accumulation</h3>
+      <div class="meta">Posterior mean histogram (per dev-rule)</div>
+      ${m6_histogram}
+    </div>
+    <div class="panel">
+      <h3>M7 &mdash; Zheng Pairwise Rubric</h3>
+      <div class="meta">Axis score radar (session mean)</div>
+      ${m7_radar_svg}
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>Kappa log &mdash; inter-judge stability</h2>
+  <div class="meta">Axes with Kappa &lt; 0.4 are flagged unstable per CLAUDE.md &sect;3.</div>
+  <table>
+    <thead>
+      <tr>
+        <th>File</th>
+        <th>Axis</th>
+        <th class="mono">Pass1</th>
+        <th class="mono">Pass2</th>
+        <th class="mono">Agreement</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${kappa_rows}
+    </tbody>
+  </table>
+</section>
+
+<section>
+  <h2>Recent learnings</h2>
+  <div class="meta">Last ${learnings_count} F-code entries from shared/learnings.json &middot; see shared/conduct/failure-modes.md for the 14-code taxonomy.</div>
+  <ul class="learnings">
+    ${learnings_items}
+  </ul>
+</section>
+
+<section>
+  <h2>Appendix &mdash; verdict.jsonl</h2>
+  <details>
+    <summary>Full verdict dump (${file_count} records, click to expand)</summary>
+    <pre class="dump">${verdict_dump}</pre>
+  </details>
+  <div class="footer">
+    Mantis &mdash; five-engine review pipeline (M1 Cousot &middot; M2 Falleri &middot; M5 Sandbox &middot; M6 Beta &middot; M7 Zheng).
+    Report honors brand invariants: zero runtime deps, dark theme, managed agent tiers.
+  </div>
+</section>
+
+</body>
+</html>

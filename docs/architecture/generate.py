@@ -1,588 +1,584 @@
 #!/usr/bin/env python
 """
-{{PluginName}} Architecture Generator — reads the codebase and produces:
-  1. Mermaid diagrams (.mmd) from plugin.json, hooks.json, SKILL.md, agents
-  2. An interactive HTML architecture explorer (dark-themed, single page)
-  3. SVG renders if mmdc (mermaid-cli) is available
+Mantis Verdict Report Generator (brand invariant #5).
 
-Usage: python generate.py [repo_root]
+Reads the five engine state files and renders a dark-themed HTML document;
+optionally shells out to docs/assets/render.js (puppeteer) for PDF rendering.
 
-These diagrams can never go stale — they're generated from the source of truth.
+Zero runtime deps: stdlib only. Renderer deps (puppeteer) live in
+docs/assets/package.json and are dev-only — never imported from plugin code.
+
+CLI:
+    python docs/architecture/generate.py [--out PATH] [--html-only]
+
+When --out ends in .pdf, puppeteer is invoked unless --html-only is set.
+When --html-only is set, the HTML is left at --out (or output/verdict-report.html).
 """
+from __future__ import annotations
 
+import argparse
+import html as html_lib
 import json
+import math
 import os
-import re
-import sys
+import shutil
+import string
 import subprocess
-from pathlib import Path
+import sys
+from collections import Counter, defaultdict
 from datetime import datetime, timezone
-
-
-def find_repo_root(start=None):
-    p = Path(start) if start else Path(__file__).resolve().parent.parent.parent
-    if (p / "shared" / "constants.sh").exists():
-        return p
-    return p
-
-
-def load_json(path):
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except Exception:
-        return {}
-
-
-def parse_frontmatter(path):
-    """Extract YAML frontmatter from .md files."""
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            content = f.read()
-    except Exception:
-        return {}
-
-    if not content.startswith("---"):
-        return {}
-
-    end = content.find("---", 3)
-    if end == -1:
-        return {}
-
-    fm = {}
-    for line in content[3:end].strip().split("\n"):
-        line = line.strip()
-        if ":" in line and not line.startswith("-"):
-            key, val = line.split(":", 1)
-            fm[key.strip()] = val.strip()
-    return fm
-
-
-def scan_plugins(repo):
-    """Scan all plugins and extract structure."""
-    plugins = []
-    plugins_dir = repo / "plugins"
-    if not plugins_dir.exists():
-        return plugins
-
-    for pdir in sorted(plugins_dir.iterdir()):
-        if not pdir.is_dir():
-            continue
-
-        pjson = load_json(pdir / ".claude-plugin" / "plugin.json")
-        if not pjson:
-            continue
-
-        plugin = {
-            "name": pjson.get("name", pdir.name),
-            "short": pdir.name,
-            "description": pjson.get("description", ""),
-            "version": pjson.get("version", "?"),
-            "dir": pdir,
-            "hooks": [],
-            "skills": [],
-            "agents": [],
-            "commands": [],
-        }
-
-        # Hooks
-        hooks_json = load_json(pdir / "hooks" / "hooks.json")
-        for phase, matchers in hooks_json.get("hooks", {}).items():
-            for matcher_block in matchers:
-                matcher = matcher_block.get("matcher", "*")
-                for hook in matcher_block.get("hooks", []):
-                    cmd = hook.get("command", "")
-                    script = cmd.split("/")[-1].replace('"', "").strip()
-                    plugin["hooks"].append({
-                        "phase": phase,
-                        "matcher": matcher,
-                        "script": script,
-                        "timeout": hook.get("timeout", "?"),
-                    })
-
-        # Skills
-        skills_dir = pdir / "skills"
-        if skills_dir.exists():
-            for sdir in sorted(skills_dir.iterdir()):
-                skill_md = sdir / "SKILL.md"
-                if skill_md.exists():
-                    fm = parse_frontmatter(skill_md)
-                    plugin["skills"].append({
-                        "name": fm.get("name", sdir.name),
-                        "description": fm.get("description", ""),
-                        "allowed_tools": fm.get("allowed-tools", ""),
-                    })
-
-        # Agents
-        agents_dir = pdir / "agents"
-        if agents_dir.exists():
-            for afile in sorted(agents_dir.glob("*.md")):
-                fm = parse_frontmatter(afile)
-                plugin["agents"].append({
-                    "name": fm.get("name", afile.stem),
-                    "model": fm.get("model", "?"),
-                    "context": fm.get("context", "?"),
-                })
-
-        # Commands
-        cmds_dir = pdir / "commands"
-        if cmds_dir.exists():
-            for cfile in sorted(cmds_dir.glob("*.md")):
-                fm = parse_frontmatter(cfile)
-                plugin["commands"].append({
-                    "name": fm.get("name", cfile.stem),
-                    "description": fm.get("description", ""),
-                })
-
-        plugins.append(plugin)
-
-    return plugins
-
-
-# ── Mermaid generation ────────────────────────────────────────────────
-
-def gen_highlevel_mermaid(plugins):
-    """High-level: 3 hook phases → 3 plugins → outputs."""
-    lines = [
-        "graph TD",
-        '    CC["Claude Code<br/>Tool Calls"]',
-    ]
-
-    phase_colors = {
-        "PreToolUse": "#58a6ff",
-        "PostToolUse": "#3fb950",
-        "PreCompact": "#d29922",
-    }
-
-    # Collect phases per plugin
-    for p in plugins:
-        pid = p["short"].replace("-", "_")
-        phases = set(h["phase"] for h in p["hooks"])
-        phase_str = " + ".join(sorted(phases)) if phases else "—"
-
-        lines.append(f'    {pid}["{p["short"]}<br/><small>{phase_str}</small>"]')
-        lines.append(f'    CC --> {pid}')
-
-        # Outputs
-        lines.append(f'    {pid}_out(["state/metrics.jsonl"])')
-        lines.append(f'    {pid} --> {pid}_out')
-
-        # Style — use first phase color, or blend for multi-phase
-        if phases:
-            color = phase_colors.get(sorted(phases)[0], "#8b949e")
-            if len(phases) > 1:
-                color = "#bc8cff"  # purple for multi-phase
-            lines.append(f'    style {pid} fill:#161b22,stroke:{color},color:#e6edf3')
-
-    lines.append('    style CC fill:#0d1117,stroke:#bc8cff,color:#e6edf3')
-
-    return "\n".join(lines)
-
-
-def gen_hooks_mermaid(plugins):
-    """Detailed hook flow: which scripts fire on which tools."""
-    lines = ["graph LR"]
-
-    for p in plugins:
-        pid = p["short"].replace("-", "_")
-        lines.append(f'    subgraph {pid}["{p["short"]}"]')
-
-        for i, h in enumerate(p["hooks"]):
-            hid = f'{pid}_h{i}'
-            tools = h["matcher"].replace("|", " | ")
-            lines.append(f'        {hid}_trigger["{h["phase"]}<br/>{tools}"]')
-            lines.append(f'        {hid}_script["{h["script"]}<br/><small>timeout: {h["timeout"]}s</small>"]')
-            lines.append(f'        {hid}_trigger --> {hid}_script')
-
-        lines.append("    end")
-
-    return "\n".join(lines)
-
-
-def gen_dataflow_mermaid(plugins):
-    """Metrics data flow: what events each plugin logs."""
-    lines = [
-        "graph TB",
-        '    subgraph inputs["Tool Calls"]',
-        '        Bash["Bash"]',
-        '        Read["Read"]',
-        '        Write["Write / Edit"]',
-        '        Glob["Glob / Grep"]',
-        "    end",
-    ]
-
-    events_map = {
-        "context-guard": ["turn (token est.)", "drift_detected"],
-        "token-saver": ["bash_compressed", "duplicate_blocked", "delta_read", "result_aged"],
-        "state-keeper": ["checkpoint_saved"],
-    }
-
-    for p in plugins:
-        pid = p["short"].replace("-", "_")
-        events = events_map.get(p["short"], [])
-        evt_str = "<br/>".join(events)
-        lines.append(f'    {pid}_metrics["{p["short"]}/state/metrics.jsonl<br/><small>{evt_str}</small>"]')
-
-        for h in p["hooks"]:
-            for tool in h["matcher"].split("|"):
-                tool = tool.strip()
-                if tool in ("Bash", "Read", "Write", "Edit", "Glob", "Grep", "MultiEdit"):
-                    src = {"Edit": "Write", "MultiEdit": "Write"}.get(tool, tool)
-                    if src == "Grep":
-                        src = "Glob"
-                    lines.append(f'    {src} --> {pid}_metrics')
-                    break
-
-    lines.append('    report["📊 /allay:report<br/>Aggregates all metrics"]')
-    for p in plugins:
-        pid = p["short"].replace("-", "_")
-        lines.append(f'    {pid}_metrics --> report')
-
-    return "\n".join(lines)
-
-
-def gen_session_lifecycle_mermaid(plugins):
-    """Session lifecycle: auto-detect phases from plugins."""
-    # Collect which plugins own which phases
-    phase_plugins = {}
-    for p in plugins:
-        for h in p["hooks"]:
-            phase_plugins.setdefault(h["phase"], []).append(p["short"])
-
-    lines = ["graph TD", '    start(["Session Start"]) --> turns']
-    lines.append('    subgraph turns["Active Session"]')
-    lines.append('        t1["Turn N: Tool Call"]')
-
-    if "PreToolUse" in phase_plugins:
-        names = ", ".join(sorted(set(phase_plugins["PreToolUse"])))
-        lines.append(f'        t1 --> pre["PreToolUse<br/>{names}"]')
-        lines.append('        pre --> exec["Tool Executes"]')
-    else:
-        lines.append('        t1 --> exec["Tool Executes"]')
-
-    if "PostToolUse" in phase_plugins:
-        names = ", ".join(sorted(set(phase_plugins["PostToolUse"])))
-        lines.append(f'        exec --> post["PostToolUse<br/>{names}"]')
-        lines.append('        post --> t1')
-    else:
-        lines.append('        exec --> t1')
-
-    lines.append("    end")
-
-    if "PreCompact" in phase_plugins:
-        names = ", ".join(sorted(set(phase_plugins["PreCompact"])))
-        lines.append(f'    turns -->|"Context full"| compact["⚠️ Compaction"]')
-        lines.append(f'    compact --> precompact["PreCompact<br/>{names}"]')
-        lines.append('    precompact --> wipe["Context Wiped"]')
-        lines.append('    wipe --> restore["Restore context"]')
-        lines.append('    restore --> resume(["Session Continues"])')
-        lines.append('    style compact fill:#f85149,color:#0d1117')
-        lines.append('    style precompact fill:#d29922,color:#0d1117')
-        lines.append('    style restore fill:#3fb950,color:#0d1117')
-
-    return "\n".join(lines)
-
-
-# ── HTML generation ───────────────────────────────────────────────────
-
-def gen_html(plugins, mermaid_diagrams, repo):
-    """Interactive architecture explorer — single HTML page, dark theme."""
-    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-
-    # Build plugin cards
-    plugin_cards = ""
-    for p in plugins:
-        hooks_html = ""
-        for h in p["hooks"]:
-            hooks_html += f'<div class="hook"><span class="phase">{h["phase"]}</span> <span class="matcher">{h["matcher"]}</span> → <code>{h["script"]}</code> <span class="dim">({h["timeout"]}s)</span></div>'
-
-        skills_html = "".join(
-            f'<div class="item"><strong>{s["name"]}</strong></div>' for s in p["skills"]
-        )
-        agents_html = "".join(
-            f'<div class="item"><strong>{a["name"]}</strong> <span class="dim">({a["model"]}, {a["context"]})</span></div>' for a in p["agents"]
-        )
-        commands_html = "".join(
-            f'<div class="item"><code>{c["name"]}</code></div>' for c in p["commands"]
-        )
-
-        plugin_cards += f"""
-        <div class="plugin-card">
-          <h3>{p["short"]}</h3>
-          <p class="desc">{p["description"]}</p>
-          <div class="section-label">Hooks</div>
-          {hooks_html or '<div class="dim">None</div>'}
-          <div class="section-label">Skills</div>
-          {skills_html or '<div class="dim">None</div>'}
-          <div class="section-label">Agents</div>
-          {agents_html or '<div class="dim">None</div>'}
-          <div class="section-label">Commands</div>
-          {commands_html or '<div class="dim">None</div>'}
-        </div>"""
-
-    return f"""<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<title>{{PluginName}} — Architecture Explorer</title>
-<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
-<style>
-  * {{ margin: 0; padding: 0; box-sizing: border-box; }}
-  body {{
-    background: #0d1117;
-    color: #e6edf3;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-    font-size: 14px;
-    line-height: 1.6;
-    padding: 0;
-  }}
-  .brand-bar {{ height: 3px; background: #39d353; }}
-  .container {{ max-width: 1200px; margin: 0 auto; padding: 32px 24px; }}
-  h1 {{ font-size: 32px; margin-bottom: 4px; }}
-  h1 span {{ color: #8b949e; font-size: 14px; font-weight: 400; margin-left: 12px; }}
-  .subtitle {{ color: #484f58; font-size: 12px; margin-bottom: 32px; }}
-  h2 {{
-    font-size: 18px;
-    margin: 32px 0 16px;
-    padding-bottom: 8px;
-    border-bottom: 1px solid #30363d;
-  }}
-  .tabs {{
-    display: flex;
-    gap: 4px;
-    margin-bottom: 0;
-    border-bottom: 1px solid #30363d;
-  }}
-  .tab {{
-    padding: 8px 16px;
-    cursor: pointer;
-    border: 1px solid transparent;
-    border-bottom: none;
-    border-radius: 6px 6px 0 0;
-    color: #8b949e;
-    font-size: 13px;
-    background: transparent;
-    transition: all 0.15s;
-  }}
-  .tab:hover {{ color: #e6edf3; background: #161b22; }}
-  .tab.active {{
-    color: #e6edf3;
-    background: #161b22;
-    border-color: #30363d;
-    border-bottom-color: #161b22;
-    margin-bottom: -1px;
-  }}
-  .diagram-panel {{
-    display: none;
-    background: #161b22;
-    border: 1px solid #30363d;
-    border-top: none;
-    border-radius: 0 0 8px 8px;
-    padding: 24px;
-    min-height: 300px;
-    overflow-x: auto;
-  }}
-  .diagram-panel.active {{ display: block; }}
-  .mermaid {{ background: transparent; }}
-  .mermaid svg {{ max-width: 100%; }}
-  .plugins-grid {{
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
-    gap: 16px;
-    margin-top: 16px;
-  }}
-  .plugin-card {{
-    background: #161b22;
-    border: 1px solid #30363d;
-    border-radius: 8px;
-    padding: 20px;
-  }}
-  .plugin-card h3 {{
-    font-size: 16px;
-    margin-bottom: 4px;
-    color: #58a6ff;
-  }}
-  .plugin-card .desc {{
-    color: #8b949e;
-    font-size: 12px;
-    margin-bottom: 12px;
-  }}
-  .section-label {{
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    color: #484f58;
-    margin-top: 12px;
-    margin-bottom: 4px;
-  }}
-  .hook {{
-    font-size: 12px;
-    padding: 4px 0;
-    border-bottom: 1px solid #21262d;
-  }}
-  .phase {{
-    display: inline-block;
-    padding: 1px 6px;
-    border-radius: 3px;
-    font-size: 10px;
-    font-weight: 600;
-    background: #1c2333;
-    color: #58a6ff;
-  }}
-  .matcher {{ color: #3fb950; font-size: 11px; }}
-  .item {{ font-size: 12px; padding: 2px 0; }}
-  .dim {{ color: #484f58; }}
-  code {{
-    background: #1c2333;
-    padding: 1px 5px;
-    border-radius: 3px;
-    font-size: 12px;
-    color: #e6edf3;
-  }}
-  .footer {{
-    margin-top: 40px;
-    padding-top: 16px;
-    border-top: 1px solid #30363d;
-    font-size: 11px;
-    color: #484f58;
-    display: flex;
-    justify-content: space-between;
-  }}
-</style>
-</head>
-<body>
-<div class="brand-bar"></div>
-<div class="container">
-  <h1>{{PluginName}} <span>Architecture Explorer</span></h1>
-  <div class="subtitle">Auto-generated from codebase — {now}</div>
-
-  <h2>System Diagrams</h2>
-  <div class="tabs">
-    <div class="tab active" onclick="showTab('highlevel')">High Level</div>
-    <div class="tab" onclick="showTab('hooks')">Hook Detail</div>
-    <div class="tab" onclick="showTab('dataflow')">Data Flow</div>
-    <div class="tab" onclick="showTab('lifecycle')">Session Lifecycle</div>
-  </div>
-
-  <div id="panel-highlevel" class="diagram-panel active">
-    <pre class="mermaid">{mermaid_diagrams['highlevel']}</pre>
-  </div>
-  <div id="panel-hooks" class="diagram-panel">
-    <pre class="mermaid">{mermaid_diagrams['hooks']}</pre>
-  </div>
-  <div id="panel-dataflow" class="diagram-panel">
-    <pre class="mermaid">{mermaid_diagrams['dataflow']}</pre>
-  </div>
-  <div id="panel-lifecycle" class="diagram-panel">
-    <pre class="mermaid">{mermaid_diagrams['lifecycle']}</pre>
-  </div>
-
-  <h2>Plugin Components</h2>
-  <div class="plugins-grid">
-    {plugin_cards}
-  </div>
-
-  <div class="footer">
-    <span>Generated by docs/architecture/generate.py from plugin.json, hooks.json, SKILL.md, agents/*.md</span>
-    <span>{{PluginName}} v{{TODO: read from marketplace.json#metadata.version}}</span>
-  </div>
-</div>
-
-<script>
-  mermaid.initialize({{
-    startOnLoad: true,
-    theme: 'dark',
-    themeVariables: {{
-      darkMode: true,
-      background: '#161b22',
-      primaryColor: '#1c2333',
-      primaryTextColor: '#e6edf3',
-      primaryBorderColor: '#30363d',
-      lineColor: '#484f58',
-      secondaryColor: '#161b22',
-      tertiaryColor: '#1c2333',
-    }}
-  }});
-
-  function showTab(id) {{
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.diagram-panel').forEach(p => p.classList.remove('active'));
-    event.target.classList.add('active');
-    document.getElementById('panel-' + id).classList.add('active');
-
-    // Re-render mermaid for newly visible panels
-    const panel = document.getElementById('panel-' + id);
-    const pre = panel.querySelector('.mermaid');
-    if (pre && !pre.getAttribute('data-processed')) {{
-      mermaid.run({{ nodes: [pre] }});
-    }}
-  }}
-</script>
-</body>
-</html>"""
-
-
-# ── Main ──────────────────────────────────────────────────────────────
-
-def main():
-    repo = find_repo_root(sys.argv[1] if len(sys.argv) > 1 else None)
-    out_dir = repo / "docs" / "architecture"
-    out_dir.mkdir(parents=True, exist_ok=True)
-
-    print(f"Scanning {repo} ...")
-    plugins = scan_plugins(repo)
-    print(f"Found {len(plugins)} plugins")
-
-    # Generate mermaid diagrams
-    diagrams = {
-        "highlevel": gen_highlevel_mermaid(plugins),
-        "hooks": gen_hooks_mermaid(plugins),
-        "dataflow": gen_dataflow_mermaid(plugins),
-        "lifecycle": gen_session_lifecycle_mermaid(plugins),
-    }
-
-    # Write .mmd files
-    for name, content in diagrams.items():
-        mmd_path = out_dir / f"{name}.mmd"
-        with open(mmd_path, "w", encoding="utf-8") as f:
-            f.write(content + "\n")
-        print(f"  {mmd_path.name}")
-
-    # Write interactive HTML
-    html_path = out_dir / "index.html"
-    with open(html_path, "w", encoding="utf-8") as f:
-        f.write(gen_html(plugins, diagrams, repo))
-    print(f"  {html_path.name}")
-
-    # Try SVG generation via mmdc (mermaid-cli)
-    mmdc = None
-    for cmd in ("mmdc", "npx mmdc", "npx -y @mermaid-js/mermaid-cli mmdc"):
-        try:
-            subprocess.run(cmd.split()[0:1], capture_output=True, timeout=5)
-            mmdc = cmd
-            break
-        except Exception:
-            continue
-
-    if mmdc:
-        for name in diagrams:
-            mmd_path = out_dir / f"{name}.mmd"
-            svg_path = out_dir / f"{name}.svg"
+from pathlib import Path
+
+REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+ARCH_DIR = Path(__file__).resolve().parent
+TEMPLATE = ARCH_DIR / "template.html"
+DEFAULT_OUTPUT = ARCH_DIR / "output" / "verdict-report.pdf"
+
+STATE_FILES = {
+    "verdict":  REPO_ROOT / "plugins" / "mantis-verdict"    / "state" / "verdict.jsonl",
+    "flags":    REPO_ROOT / "plugins" / "mantis-core"       / "state" / "review-flags.jsonl",
+    "sandbox":  REPO_ROOT / "plugins" / "mantis-sandbox"    / "state" / "run-log.jsonl",
+    "kappa":    REPO_ROOT / "plugins" / "mantis-rubric"     / "state" / "kappa-log.jsonl",
+    "prefs":    REPO_ROOT / "plugins" / "mantis-preference" / "state" / "learnings.json",
+    "rubric_cfg": REPO_ROOT / "plugins" / "mantis-rubric" / "config" / "rubric-v1.json",
+    "shared_learnings": REPO_ROOT / "shared" / "learnings.json",
+}
+
+M5_COLORS = {
+    "confirmed":         "#ea6767",
+    "timeout":           "#f2b77c",
+    "no-bug":            "#5ed0c2",
+    "platform-unsupported": "#8b93a7",
+    "other":             "#a98ad6",
+}
+
+RUBRIC_AXES_DEFAULT = ["clarity", "correctness_at_glance", "idiom_fit", "testability", "simplicity"]
+
+
+# --- I/O helpers -----------------------------------------------------------
+
+def read_jsonl(path: Path) -> list[dict]:
+    if not path.exists():
+        return []
+    out = []
+    with path.open("r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
             try:
-                subprocess.run(
-                    f'{mmdc} -i "{mmd_path}" -o "{svg_path}" -t dark -b transparent'.split(),
-                    capture_output=True, timeout=30
-                )
-                if svg_path.exists():
-                    print(f"  {svg_path.name} (SVG)")
-            except Exception:
-                pass
-    else:
-        print("  (mmdc not found — SVG generation skipped. Install: npm i -g @mermaid-js/mermaid-cli)")
+                out.append(json.loads(line))
+            except json.JSONDecodeError:
+                continue
+    return out
 
-    print(f"\nOpen {html_path} in a browser for the interactive explorer.")
-    print(html_path)
+
+def read_json(path: Path) -> dict:
+    if not path.exists():
+        return {}
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return {}
+
+
+def e(s) -> str:
+    """HTML-escape a scalar."""
+    return html_lib.escape("" if s is None else str(s), quote=True)
+
+
+# --- Aggregators -----------------------------------------------------------
+
+def aggregate_verdicts(records: list[dict]) -> dict:
+    counts = Counter()
+    confidence = Counter()
+    for r in records:
+        counts[r.get("verdict", "UNKNOWN")] += 1
+        confidence[r.get("confidence", "unknown")] += 1
+    return {
+        "total": len(records),
+        "deploy": counts.get("DEPLOY", 0),
+        "hold":   counts.get("HOLD", 0),
+        "fail":   counts.get("FAIL", 0),
+        "confidence": dict(confidence),
+    }
+
+
+def aggregate_m1(flags: list[dict]) -> dict:
+    by_rule = Counter()
+    by_sev = Counter()
+    for f in flags:
+        by_rule[f.get("rule_id", "unknown")] += 1
+        by_sev[f.get("severity", "UNKNOWN")] += 1
+    return {"total": len(flags), "by_rule": dict(by_rule), "by_severity": dict(by_sev)}
+
+
+def aggregate_m5(runs: list[dict]) -> dict:
+    by_status = Counter()
+    for r in runs:
+        s = r.get("status", "other")
+        if s not in M5_COLORS:
+            s = "other"
+        by_status[s] += 1
+    return {"total": len(runs), "by_status": dict(by_status)}
+
+
+def aggregate_m6(prefs: dict) -> dict:
+    """prefs is expected to be {"posteriors": {"dev:rule": {"alpha": ..., "beta": ...}}}
+    or an alternative shape with flat "{dev}/{rule}: {alpha, beta}" entries. Accept either."""
+    means = []
+    posteriors = prefs.get("posteriors") if isinstance(prefs, dict) else None
+    if posteriors is None and isinstance(prefs, dict):
+        posteriors = prefs
+    if not isinstance(posteriors, dict):
+        return {"total": 0, "histogram": [0] * 10, "means": []}
+
+    for _key, val in posteriors.items():
+        if not isinstance(val, dict):
+            continue
+        alpha = val.get("alpha")
+        beta = val.get("beta")
+        if not isinstance(alpha, (int, float)) or not isinstance(beta, (int, float)):
+            continue
+        denom = alpha + beta
+        if denom <= 0:
+            continue
+        means.append(alpha / denom)
+
+    # 10-bucket histogram over [0, 1]
+    hist = [0] * 10
+    for m in means:
+        idx = min(9, max(0, int(m * 10)))
+        hist[idx] += 1
+    return {"total": len(means), "histogram": hist, "means": means}
+
+
+def aggregate_m7(kappa_records: list[dict]) -> dict:
+    """Session-mean score per axis + unstable-axis list."""
+    by_axis_s1 = defaultdict(list)
+    by_axis_s2 = defaultdict(list)
+    unstable = []
+    for r in kappa_records:
+        kappa = r.get("kappa", {})
+        for axis, v in kappa.items():
+            by_axis_s1[axis].append(v.get("s1"))
+            by_axis_s2[axis].append(v.get("s2"))
+            if v.get("unstable"):
+                unstable.append({
+                    "file": r.get("file", "?"),
+                    "axis": axis,
+                    "s1": v.get("s1"),
+                    "s2": v.get("s2"),
+                    "agreement": v.get("agreement"),
+                })
+    axes_mean = {}
+    for axis in set(list(by_axis_s1) + list(by_axis_s2)) or RUBRIC_AXES_DEFAULT:
+        s1 = [x for x in by_axis_s1.get(axis, []) if isinstance(x, (int, float))]
+        s2 = [x for x in by_axis_s2.get(axis, []) if isinstance(x, (int, float))]
+        combined = s1 + s2
+        axes_mean[axis] = sum(combined) / len(combined) if combined else 0.0
+    return {
+        "total": len(kappa_records),
+        "axes_mean": axes_mean,
+        "unstable": unstable,
+        "all_rows": kappa_records,
+    }
+
+
+# --- HTML fragment builders -----------------------------------------------
+
+def verdict_chip(v: str) -> str:
+    cls = {"DEPLOY": "chip-deploy", "HOLD": "chip-hold", "FAIL": "chip-fail"}.get(v, "chip-engine")
+    return f'<span class="chip {cls}">{e(v)}</span>'
+
+
+def engine_chip(engine: str, status: str) -> str:
+    s_norm = (status or "").lower()
+    cls = "chip-engine"
+    if s_norm == "ran":
+        cls = "chip-engine ran"
+    elif s_norm in ("unsupported", "platform-unsupported"):
+        cls = "chip-engine unsupported"
+    elif s_norm in ("failed", "fail"):
+        cls = "chip-engine fail"
+    return f'<span class="chip {cls}">{e(engine)}:{e(s_norm or "n/a")}</span>'
+
+
+def render_verdict_rows(records: list[dict]) -> str:
+    rows = []
+    for r in records:
+        file_path = r.get("file", "?")
+        verdict = r.get("verdict", "UNKNOWN")
+        conf = r.get("confidence", "unknown")
+        engines = r.get("engines", [])
+        engine_html = " ".join(engine_chip(en.get("engine", "?"), en.get("status", "?")) for en in engines)
+        reasons = r.get("reasons", [])
+        primary = reasons[0] if reasons else ""
+        rows.append(
+            f'<tr>'
+            f'<td class="file">{e(file_path)}</td>'
+            f'<td>{verdict_chip(verdict)}</td>'
+            f'<td class="mono">{e(conf)}</td>'
+            f'<td>{engine_html}</td>'
+            f'<td class="reason">{e(primary)}</td>'
+            f'</tr>'
+        )
+    if not rows:
+        rows.append('<tr><td colspan="5" class="reason">No verdicts recorded.</td></tr>')
+    return "\n      ".join(rows)
+
+
+def render_confidence_bars(confidence_counts: dict) -> str:
+    total = sum(confidence_counts.values()) or 1
+    order = ["high", "preliminary", "reduced", "unknown"]
+    seen = set()
+    items = []
+    for label in order + list(confidence_counts.keys()):
+        if label in seen or label not in confidence_counts:
+            continue
+        seen.add(label)
+        count = confidence_counts[label]
+        pct = 100.0 * count / total
+        tone = "bar-fill"
+        if label == "reduced": tone = "bar-fill amber"
+        elif label == "unknown": tone = "bar-fill clay"
+        items.append(
+            f'<div class="bar-row">'
+            f'<div class="bar-label">{e(label)}</div>'
+            f'<div class="bar-track"><div class="{tone}" style="width: {pct:.1f}%;"></div></div>'
+            f'<div class="bar-count">{count}</div>'
+            f'</div>'
+        )
+    return "\n    ".join(items) if items else '<div class="meta">(no data)</div>'
+
+
+def render_rule_bars(by_rule: dict, tone: str = "bar-fill") -> str:
+    if not by_rule:
+        return '<div class="meta">(no flags)</div>'
+    max_count = max(by_rule.values()) or 1
+    items = []
+    for rule, count in sorted(by_rule.items(), key=lambda kv: -kv[1]):
+        pct = 100.0 * count / max_count
+        items.append(
+            f'<div class="bar-row">'
+            f'<div class="bar-label">{e(rule)}</div>'
+            f'<div class="bar-track"><div class="{tone}" style="width: {pct:.1f}%;"></div></div>'
+            f'<div class="bar-count">{count}</div>'
+            f'</div>'
+        )
+    return "\n      ".join(items)
+
+
+def render_m5_pie(by_status: dict) -> tuple[str, str]:
+    """SVG inline pie. Chose SVG over <canvas> because PDF rendering via
+    print-to-pdf rasterizes <canvas> at screen DPI (fuzzy at A4); SVG is
+    vector and prints crisp."""
+    total = sum(by_status.values())
+    size = 180
+    cx = cy = size / 2
+    r = size / 2 - 6
+    if total == 0:
+        svg = (
+            f'<svg class="pie" viewBox="0 0 {size} {size}" width="{size}" height="{size}" '
+            f'xmlns="http://www.w3.org/2000/svg">'
+            f'<circle cx="{cx}" cy="{cy}" r="{r}" fill="#1c2230" stroke="#262d3c"/>'
+            f'<text x="{cx}" y="{cy+4}" text-anchor="middle" fill="#8b93a7" '
+            f'font-family="ui-monospace" font-size="11">no runs</text></svg>'
+        )
+        return svg, '<div class="legend">(no M5 runs)</div>'
+
+    paths = []
+    legend_items = []
+    start = -math.pi / 2
+    for status, count in sorted(by_status.items(), key=lambda kv: -kv[1]):
+        frac = count / total
+        end = start + frac * 2 * math.pi
+        large = 1 if frac > 0.5 else 0
+        x1 = cx + r * math.cos(start)
+        y1 = cy + r * math.sin(start)
+        x2 = cx + r * math.cos(end)
+        y2 = cy + r * math.sin(end)
+        color = M5_COLORS.get(status, M5_COLORS["other"])
+        if frac >= 0.9999:
+            # Full circle edge case
+            path = f'<circle cx="{cx}" cy="{cy}" r="{r}" fill="{color}"/>'
+        else:
+            path = (
+                f'<path d="M {cx:.2f} {cy:.2f} L {x1:.2f} {y1:.2f} '
+                f'A {r:.2f} {r:.2f} 0 {large} 1 {x2:.2f} {y2:.2f} Z" '
+                f'fill="{color}"/>'
+            )
+        paths.append(path)
+        legend_items.append(
+            f'<span><span class="legend-dot" style="background:{color};"></span>'
+            f'{e(status)} ({count}, {100*frac:.0f}%)</span>'
+        )
+        start = end
+
+    svg = (
+        f'<svg class="pie" viewBox="0 0 {size} {size}" width="{size}" height="{size}" '
+        f'xmlns="http://www.w3.org/2000/svg">'
+        + "".join(paths)
+        + '</svg>'
+    )
+    legend = '<div class="legend">' + "".join(legend_items) + '</div>'
+    return svg, legend
+
+
+def render_m6_histogram(histogram: list[int]) -> str:
+    total = sum(histogram)
+    if total == 0:
+        return '<div class="meta">(no posteriors observed)</div>'
+    max_bin = max(histogram) or 1
+    bars = []
+    for i, count in enumerate(histogram):
+        lo, hi = i / 10, (i + 1) / 10
+        pct = 100.0 * count / max_bin
+        tone = "bar-fill" if (lo + hi) / 2 >= 0.5 else "bar-fill amber"
+        bars.append(
+            f'<div class="bar-row">'
+            f'<div class="bar-label">{lo:.1f}&ndash;{hi:.1f}</div>'
+            f'<div class="bar-track"><div class="{tone}" style="width: {pct:.1f}%;"></div></div>'
+            f'<div class="bar-count">{count}</div>'
+            f'</div>'
+        )
+    return "\n      ".join(bars)
+
+
+def render_m7_radar(axes_mean: dict) -> str:
+    """Inline SVG radar chart. 5-axis regular polygon; scale 0-5."""
+    size = 220
+    cx = cy = size / 2
+    r_max = size / 2 - 30
+    axes = list(axes_mean.keys()) or RUBRIC_AXES_DEFAULT
+    n = len(axes)
+    if n == 0:
+        return '<div class="meta">(no rubric data)</div>'
+
+    # grid: 5 concentric polygons
+    grid = []
+    for level in range(1, 6):
+        pts = []
+        rr = r_max * level / 5
+        for i in range(n):
+            ang = -math.pi / 2 + i * 2 * math.pi / n
+            pts.append(f"{cx + rr*math.cos(ang):.2f},{cy + rr*math.sin(ang):.2f}")
+        grid.append(
+            f'<polygon points="{" ".join(pts)}" fill="none" stroke="#262d3c" stroke-width="1"/>'
+        )
+
+    # axis spokes + labels
+    spokes = []
+    labels = []
+    for i, axis in enumerate(axes):
+        ang = -math.pi / 2 + i * 2 * math.pi / n
+        x = cx + r_max * math.cos(ang)
+        y = cy + r_max * math.sin(ang)
+        spokes.append(
+            f'<line x1="{cx:.2f}" y1="{cy:.2f}" x2="{x:.2f}" y2="{y:.2f}" '
+            f'stroke="#262d3c" stroke-width="1"/>'
+        )
+        lx = cx + (r_max + 14) * math.cos(ang)
+        ly = cy + (r_max + 14) * math.sin(ang) + 3
+        # shorten long axis names for legibility
+        short = axis.replace("correctness_at_glance", "correctness").replace("_", " ")
+        labels.append(
+            f'<text x="{lx:.2f}" y="{ly:.2f}" text-anchor="middle" '
+            f'fill="#8b93a7" font-family="ui-monospace" font-size="9">{e(short)}</text>'
+        )
+
+    # data polygon
+    data_pts = []
+    for i, axis in enumerate(axes):
+        score = axes_mean.get(axis, 0)
+        ang = -math.pi / 2 + i * 2 * math.pi / n
+        rr = r_max * min(5, max(0, score)) / 5
+        data_pts.append(f"{cx + rr*math.cos(ang):.2f},{cy + rr*math.sin(ang):.2f}")
+    data_polygon = (
+        f'<polygon points="{" ".join(data_pts)}" fill="rgba(94, 208, 194, 0.25)" '
+        f'stroke="#5ed0c2" stroke-width="2"/>'
+    )
+
+    svg = (
+        f'<svg class="radar" viewBox="0 0 {size} {size}" width="{size}" height="{size}" '
+        f'xmlns="http://www.w3.org/2000/svg">'
+        + "".join(grid) + "".join(spokes) + data_polygon + "".join(labels)
+        + "</svg>"
+    )
+    return svg
+
+
+def render_kappa_rows(records: list[dict]) -> str:
+    rows = []
+    shown = 0
+    for r in records:
+        file_path = r.get("file", "?")
+        kappa = r.get("kappa", {})
+        # Prefer unstable axes first, then any axis with non-1.0 agreement
+        order = sorted(
+            kappa.items(),
+            key=lambda kv: (not kv[1].get("unstable", False), kv[1].get("agreement", 1.0))
+        )
+        for axis, v in order:
+            agreement = v.get("agreement", 1.0)
+            unstable = v.get("unstable", False) or (isinstance(agreement, (int, float)) and agreement < 0.4)
+            if not unstable and agreement >= 0.9 and shown >= 8:
+                continue  # de-emphasize fully-stable rows after a few shown
+            status = '<span class="unstable">UNSTABLE</span>' if unstable else '<span class="stable">stable</span>'
+            rows.append(
+                f'<tr>'
+                f'<td class="file">{e(file_path)}</td>'
+                f'<td class="mono">{e(axis)}</td>'
+                f'<td class="mono">{e(v.get("s1"))}</td>'
+                f'<td class="mono">{e(v.get("s2"))}</td>'
+                f'<td class="mono">{e(agreement)}</td>'
+                f'<td>{status}</td>'
+                f'</tr>'
+            )
+            shown += 1
+    if not rows:
+        rows.append('<tr><td colspan="6" class="reason">No kappa records.</td></tr>')
+    return "\n      ".join(rows)
+
+
+def render_learnings(shared_learnings: dict, limit: int = 8) -> tuple[str, int]:
+    entries = []
+    if isinstance(shared_learnings, dict):
+        entries = shared_learnings.get("entries", []) or []
+    elif isinstance(shared_learnings, list):
+        entries = shared_learnings
+    entries = [en for en in entries if isinstance(en, dict)]
+    entries = entries[-limit:][::-1]
+    if not entries:
+        return '<li class="meta">No learnings recorded yet.</li>', 0
+    items = []
+    for en in entries:
+        code = en.get("code", "F??")
+        note = en.get("note") or en.get("hypothesis") or en.get("outcome") or ""
+        date = en.get("date", "")
+        items.append(
+            f'<li><span class="fcode">{e(code)}</span>'
+            f'<span class="meta">{e(date)}</span> &mdash; {e(note)}</li>'
+        )
+    return "\n    ".join(items), len(entries)
+
+
+def render_verdict_dump(records: list[dict], limit_chars: int = 60000) -> str:
+    dump = "\n".join(json.dumps(r, separators=(", ", ": "), ensure_ascii=False) for r in records)
+    if len(dump) > limit_chars:
+        dump = dump[:limit_chars] + f"\n... ({len(dump) - limit_chars} more chars truncated)"
+    return e(dump)
+
+
+# --- Main build ------------------------------------------------------------
+
+def build_html(repo_root: Path) -> str:
+    verdicts    = read_jsonl(STATE_FILES["verdict"])
+    flags       = read_jsonl(STATE_FILES["flags"])
+    sandbox     = read_jsonl(STATE_FILES["sandbox"])
+    kappa       = read_jsonl(STATE_FILES["kappa"])
+    prefs       = read_json(STATE_FILES["prefs"])
+    rubric_cfg  = read_json(STATE_FILES["rubric_cfg"])
+    shared_lrn  = read_json(STATE_FILES["shared_learnings"])
+
+    v_agg = aggregate_verdicts(verdicts)
+    m1 = aggregate_m1(flags)
+    m5 = aggregate_m5(sandbox)
+    m6 = aggregate_m6(prefs)
+    m7 = aggregate_m7(kappa)
+
+    m5_svg, m5_legend = render_m5_pie(m5["by_status"])
+    learnings_html, learnings_count = render_learnings(shared_lrn)
+
+    subs = {
+        "repo_name": repo_root.name,
+        "session_date": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+        "generated_ts": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "rubric_version": str(rubric_cfg.get("version", "1.0")),
+        "file_count": v_agg["total"],
+        "deploy_count": v_agg["deploy"],
+        "hold_count":   v_agg["hold"],
+        "fail_count":   v_agg["fail"],
+        "confidence_bars": render_confidence_bars(v_agg["confidence"]),
+        "verdict_rows": render_verdict_rows(verdicts),
+        "m1_total": m1["total"],
+        "m1_rule_bars": render_rule_bars(m1["by_rule"]),
+        "m5_total": m5["total"],
+        "m5_pie_svg": m5_svg,
+        "m5_legend": m5_legend,
+        "m6_histogram": render_m6_histogram(m6["histogram"]),
+        "m7_radar_svg": render_m7_radar(m7["axes_mean"]),
+        "kappa_rows": render_kappa_rows(kappa),
+        "learnings_items": learnings_html,
+        "learnings_count": learnings_count,
+        "verdict_dump": render_verdict_dump(verdicts),
+    }
+
+    tpl = string.Template(TEMPLATE.read_text(encoding="utf-8"))
+    # safe_substitute so unset keys pass through; but we then validate nothing slipped.
+    html_out = tpl.safe_substitute(subs)
+    # Sanity: catch any stray ${...} placeholders we forgot to populate
+    remaining = []
+    i = 0
+    while True:
+        j = html_out.find("${", i)
+        if j == -1:
+            break
+        k = html_out.find("}", j)
+        if k == -1:
+            break
+        remaining.append(html_out[j:k+1])
+        i = k + 1
+    if remaining:
+        sys.stderr.write(f"WARN: unresolved template placeholders: {sorted(set(remaining))}\n")
+    return html_out
+
+
+def render_pdf(html_path: Path, pdf_path: Path) -> int:
+    """Shell out to docs/architecture/render.js via npx/node."""
+    renderer = ARCH_DIR / "render.js"
+    if not renderer.exists():
+        sys.stderr.write(f"ERROR: renderer missing at {renderer}\n")
+        return 2
+    node = shutil.which("node")
+    if not node:
+        sys.stderr.write("ERROR: `node` not on PATH — install Node.js or use --html-only\n")
+        return 3
+    cmd = [node, str(renderer), str(html_path), str(pdf_path)]
+    proc = subprocess.run(cmd, cwd=str(REPO_ROOT))
+    return proc.returncode
+
+
+def main(argv=None) -> int:
+    ap = argparse.ArgumentParser(description="Mantis verdict-report PDF/HTML generator.")
+    ap.add_argument("--out", default=str(DEFAULT_OUTPUT),
+                    help="Output path (.pdf invokes puppeteer; .html writes HTML only).")
+    ap.add_argument("--html-only", action="store_true",
+                    help="Skip the puppeteer step; write HTML at --out (or sibling .html if --out is .pdf).")
+    args = ap.parse_args(argv)
+
+    out_path = Path(args.out).resolve()
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+
+    html_out = build_html(REPO_ROOT)
+
+    if args.html_only or out_path.suffix.lower() == ".html":
+        html_target = out_path if out_path.suffix.lower() == ".html" else out_path.with_suffix(".html")
+        html_target.write_text(html_out, encoding="utf-8")
+        print(f"wrote {html_target} ({len(html_out):,} bytes)")
+        return 0
+
+    # PDF mode: write HTML to a sibling, then render
+    html_target = out_path.with_suffix(".html")
+    html_target.write_text(html_out, encoding="utf-8")
+    print(f"wrote {html_target} ({len(html_out):,} bytes)")
+    rc = render_pdf(html_target, out_path)
+    if rc != 0:
+        sys.stderr.write("PDF render failed; HTML was written. Use --html-only to skip this step.\n")
+        return rc
+    print(f"wrote {out_path}")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

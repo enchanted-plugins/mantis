@@ -1,0 +1,27 @@
+{
+  "_comment": "Puppeteer launch + print-to-PDF settings for the Mantis verdict report. Dev-only; consumed by docs/architecture/render.js, never imported from plugin code.",
+  "launch": {
+    "headless": "new",
+    "args": [
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--disable-dev-shm-usage",
+      "--font-render-hinting=none"
+    ]
+  },
+  "page": {
+    "emulateMediaFeatures": [
+      { "name": "prefers-color-scheme", "value": "dark" }
+    ],
+    "viewport": { "width": 1240, "height": 1754, "deviceScaleFactor": 2 }
+  },
+  "pdf": {
+    "format": "A4",
+    "printBackground": true,
+    "preferCSSPageSize": true,
+    "margin": { "top": "18mm", "right": "18mm", "bottom": "18mm", "left": "18mm" },
+    "displayHeaderFooter": false,
+    "omitBackground": false,
+    "timeout": 60000
+  }
+}
