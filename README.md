@@ -308,4 +308,14 @@ MIT — see [LICENSE](LICENSE).
 
 ---
 
+## Role in the ecosystem
+
+Mantis is the **code-review layer** (Phase 3, pre-release) — it runs a five-engine pipeline (M1 Cousot · M2 Falleri · M5 Bounded Subprocess · M6 Bayesian Preference · M7 Zheng Rubric) over a diff and emits an advisory verdict per finding. Upstream, Hornet's trust score tells Mantis which changes are worth the sandbox spend. Downstream, Weaver surfaces Mantis findings on the PR body at `/weaver:pr` time.
+
+Mantis does not observe every edit (Hornet's lane — Mantis runs on demand, not on every Write), orchestrate PRs (Weaver's lane), track cost (Nook's lane), or scan for security patterns (Reaper's lane). It decides whether a change is *correct*, not whether it's *trusted* or *safe*.
+
+Mantis joins Hornet and Weaver in the Hollow-Knight cluster — three HK entities for three related dev-surface concerns. See [docs/ecosystem.md § Data Flow Between Plugins](docs/ecosystem.md#data-flow-between-plugins) for the full map.
+
+---
+
 Repo: https://github.com/enchanted-plugins/mantis
