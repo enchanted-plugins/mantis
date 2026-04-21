@@ -9,8 +9,17 @@
 plugins/*/state/*
 !plugins/*/state/.gitkeep
 
+# Gauss Accumulation — aggregated cross-plugin snapshot (regenerated per export)
+shared/learnings.json
+
+# Event-bus runtime state (JSON-lines, regenerated at runtime)
+shared/events/bus.jsonl
+
 # Test fixture outputs (M1 flags, M7 scores, verdicts — regenerated per run)
 tests/fixtures/**/output/
+
+# Perf benchmark snapshots (regenerated per bench run)
+tests/perf/*.latest.json
 
 # OS files
 .DS_Store
@@ -26,6 +35,10 @@ __pycache__/
 # Asset toolchain (mermaid-cli + puppeteer + mathjax are dev-only; generated SVGs are committed)
 docs/assets/node_modules/
 docs/assets/package-lock.json
+
+# Verdict-report artifacts (regenerated per release from current state)
+docs/architecture/output/*.pdf
+docs/architecture/output/*.html
 
 # Editor
 .vscode/
