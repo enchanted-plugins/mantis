@@ -70,7 +70,7 @@ cat <<'EOF'
 
   Upstream context:
     - Hydra owns security (CWE findings) — Lich never duplicates R3.
-    - Raven owns change classification — Lich consumes V1/V2.
+    - Crow owns change classification — Lich consumes V1/V2.
     - Pech owns cost tracking — Lich downshifts M7 judge under budget pressure.
 
 EOF

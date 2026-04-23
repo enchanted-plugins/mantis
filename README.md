@@ -70,7 +70,7 @@ Lich addresses both: the M1 static flagger feeds the M5 sandboxed confirmer (cat
 <p align="center">
   <a href="docs/assets/pipeline.mmd" title="View pipeline source (Mermaid)">
     <img src="docs/assets/pipeline.svg"
-         alt="Lich seven-subplugin architecture blueprint — Raven change classification input, lich-core (M1 Cousot Interval Propagation + M2 Falleri Structural Diff) as static-suspicion layer, lich-sandbox (M5 Bounded Subprocess Dry-Run) as confirmation layer, lich-preference + lich-rubric (M6 Bayesian Preference Accumulation + M7 Zheng Pairwise Rubric Judgment) as preference and judgment layers, lich-python + lich-typescript language adapters, lich-verdict cross-engine DEPLOY/HOLD/FAIL router, and peer-plugin subscription legend"
+         alt="Lich seven-subplugin architecture blueprint — Crow change classification input, lich-core (M1 Cousot Interval Propagation + M2 Falleri Structural Diff) as static-suspicion layer, lich-sandbox (M5 Bounded Subprocess Dry-Run) as confirmation layer, lich-preference + lich-rubric (M6 Bayesian Preference Accumulation + M7 Zheng Pairwise Rubric Judgment) as preference and judgment layers, lich-python + lich-typescript language adapters, lich-verdict cross-engine DEPLOY/HOLD/FAIL router, and peer-plugin subscription legend"
          width="100%" style="max-width: 1100px;">
   </a>
 </p>
@@ -97,7 +97,7 @@ M7 Zheng Pairwise Rubric runs the judge twice with position-swapped inputs and r
 
 ### Cross-plugin signal routing
 
-Lich defers security-lane findings to Hydra (CWE classification, pattern databases) and change-classification to Raven (Bayesian trust scoring per file). The three cooperate: Lich catches code quality, Hydra catches security, Raven catches unexpected-change risk. One PR, three orthogonal verdicts, no duplicate work.
+Lich defers security-lane findings to Hydra (CWE classification, pattern databases) and change-classification to Crow (Bayesian trust scoring per file). The three cooperate: Lich catches code quality, Hydra catches security, Crow catches unexpected-change risk. One PR, three orthogonal verdicts, no duplicate work.
 
 ## The Full Lifecycle
 
@@ -240,7 +240,7 @@ Honest comparison against adjacent tools. Marks `✓` only where the feature is 
 | Zero external runtime deps | ✓ | — | — | — |
 | Markdown-file rule customization | ✓ | ✓ | ✓ | ✓ |
 | Auto-generated PR comments | via Sylph | ✓ | ✓ | ✓ |
-| Cross-plugin signal routing (Hydra, Raven, Pech) | ✓ | — | — | — |
+| Cross-plugin signal routing (Hydra, Crow, Pech) | ✓ | — | — | — |
 
 ## Agent Conduct (10 Modules)
 
@@ -310,11 +310,11 @@ MIT — see [LICENSE](LICENSE).
 
 ## Role in the ecosystem
 
-Lich is the **code-review layer** (Phase 3, pre-release) — it runs a five-engine pipeline (M1 Cousot · M2 Falleri · M5 Bounded Subprocess · M6 Bayesian Preference · M7 Zheng Rubric) over a diff and emits an advisory verdict per finding. Upstream, Raven's trust score tells Lich which changes are worth the sandbox spend. Downstream, Sylph surfaces Lich findings on the PR body at `/sylph:pr` time.
+Lich is the **code-review layer** (Phase 3, pre-release) — it runs a five-engine pipeline (M1 Cousot · M2 Falleri · M5 Bounded Subprocess · M6 Bayesian Preference · M7 Zheng Rubric) over a diff and emits an advisory verdict per finding. Upstream, Crow's trust score tells Lich which changes are worth the sandbox spend. Downstream, Sylph surfaces Lich findings on the PR body at `/sylph:pr` time.
 
-Lich does not observe every edit (Raven's lane — Lich runs on demand, not on every Write), orchestrate PRs (Sylph's lane), track cost (Pech's lane), or scan for security patterns (Hydra's lane). It decides whether a change is *correct*, not whether it's *trusted* or *safe*.
+Lich does not observe every edit (Crow's lane — Lich runs on demand, not on every Write), orchestrate PRs (Sylph's lane), track cost (Pech's lane), or scan for security patterns (Hydra's lane). It decides whether a change is *correct*, not whether it's *trusted* or *safe*.
 
-Lich joins Raven and Sylph in the Hollow-Knight cluster — three HK entities for three related dev-surface concerns. See [docs/ecosystem.md § Data Flow Between Plugins](docs/ecosystem.md#data-flow-between-plugins) for the full map.
+Lich joins Crow and Sylph in the Hollow-Knight cluster — three HK entities for three related dev-surface concerns. See [docs/ecosystem.md § Data Flow Between Plugins](docs/ecosystem.md#data-flow-between-plugins) for the full map.
 
 ---
 

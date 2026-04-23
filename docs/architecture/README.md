@@ -31,7 +31,7 @@ Commit the regenerated `*.mmd` and `index.html` in the same commit that changed 
 
 ## Why generation, not hand-edit
 
-The 4-sibling consensus (fae + wixie + raven + hydra) treats this as a brand invariant: *diagrams never go stale*. Every sibling's `generate.py` reads the same source shapes and produces the same diagram types. If you edit a `.mmd` by hand, the next `generate.py` run overwrites you — and if no one ever runs `generate.py` again, the `.mmd` is wrong forever.
+The 4-sibling consensus (emu + wixie + crow + hydra) treats this as a brand invariant: *diagrams never go stale*. Every sibling's `generate.py` reads the same source shapes and produces the same diagram types. If you edit a `.mmd` by hand, the next `generate.py` run overwrites you — and if no one ever runs `generate.py` again, the `.mmd` is wrong forever.
 
 ## Optional: SVG renders
 

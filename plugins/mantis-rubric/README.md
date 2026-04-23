@@ -32,7 +32,7 @@ Catches the style / clarity / idiom signals no static engine can — the "is thi
 ## Non-duplication
 
 - Not a security reviewer (Hydra R3).
-- Not a change classifier (Raven V1/V2).
+- Not a change classifier (Crow V1/V2).
 - Not a correctness prover (M1+M5 handle that — M7 judges readability and idiom, not soundness).
 
 ## Install

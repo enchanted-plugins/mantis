@@ -4,7 +4,7 @@
 # Verifies:
 #   1. `/lich-disable` publishes `lich.rule.disabled` to the bus.
 #   2. The verdict composer publishes `lich.review.completed` per file.
-#   3. An injected `raven.change.classified` is visible via
+#   3. An injected `crow.change.classified` is visible via
 #      subscriptions.check_for_raven_boost.
 #
 # The bus is brand invariant #7 — observability. Every publisher is
@@ -95,7 +95,7 @@ fi
 echo "[harness]          got ${review_events} lich.review.completed event(s)"
 
 # ---------------------------------------------------------------------
-# Stage 3: inject a synthetic raven.change.classified event and confirm
+# Stage 3: inject a synthetic crow.change.classified event and confirm
 # check_for_raven_boost returns the trust score.
 # ---------------------------------------------------------------------
 echo "[harness] stage 3: check_for_raven_boost returns the synthetic trust"
@@ -107,10 +107,10 @@ sys.path.insert(0, str(repo / "shared"))
 from events.bus import publish
 from events.subscriptions import check_for_raven_boost
 
-publish("raven.change.classified",
+publish("crow.change.classified",
         {"file": "src/foo.py", "trust": 0.62,
          "classification": "refactor"},
-        source="raven")
+        source="crow")
 assert check_for_raven_boost("src/foo.py") == 0.62, \
     "expected 0.62 trust score"
 assert check_for_raven_boost("src/other.py") is None, \

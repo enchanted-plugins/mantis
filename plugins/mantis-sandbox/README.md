@@ -144,7 +144,7 @@ No existing reviewer ships static-suspicion -> sandboxed-confirmation at zero-de
 M5 does not:
 
 - Scan for CWEs. That is Hydra's R3 lane — 98 CWEs across 2,011 patterns. M5 boosts M6 attention weight on Hydra-flagged files but never reclassifies.
-- Classify changes. That is Raven's V1/V2 lane. M5 consumes Raven's trust score into the M6 prior.
+- Classify changes. That is Crow's V1/V2 lane. M5 consumes Crow's trust score into the M6 prior.
 - Emit verdicts. That is `lich-verdict`'s lane. M5 writes `run-log.jsonl` records; the verdict composer reads them.
 - Persist witness outputs. The per-run tempdir is ephemeral. Only the run-log record survives.
 

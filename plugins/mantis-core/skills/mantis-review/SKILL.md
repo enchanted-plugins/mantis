@@ -7,7 +7,7 @@ description: >
   for M5 confirmation. Use when: the user runs /lich-review on a hunk /
   file / PR, or the PostToolUse hook fires on Write/Edit/MultiEdit. Do not
   use for: security-taint review (Hydra R3 owns that), change
-  classification (Raven V1/V2 owns that), or rubric-style judgment
+  classification (Crow V1/V2 owns that), or rubric-style judgment
   (lich-rubric skill owns that).
 model: sonnet
 tools: [Read, Grep, Glob]
@@ -19,7 +19,7 @@ tools: [Read, Grep, Glob]
 
 - A `lich-core` sub-plugin state dir exists at `plugins/lich-core/state/`.
 - Target code parses under the detected language's substrate (Python `ast`, TypeScript `tsc --generateTrace`). If parsing fails, emit `substrate-parse-failed` and skip — do not fabricate flags.
-- Raven's `change-tracker/state/audit.jsonl` is optionally present. If absent, Lich runs on the full file instead of Raven-flagged hunks.
+- Crow's `change-tracker/state/audit.jsonl` is optionally present. If absent, Lich runs on the full file instead of Crow-flagged hunks.
 
 ## Inputs
 

@@ -1,6 +1,6 @@
 # Plugin.json Audit — 2026-04-21
 
-Auditor: config-audit pass per the 7-field contract in root `CLAUDE.md` § Brand invariant 4 (Fae-style marketplace). One line per plugin. JSON round-trip verified on all 8 files.
+Auditor: config-audit pass per the 7-field contract in root `CLAUDE.md` § Brand invariant 4 (Emu-style marketplace). One line per plugin. JSON round-trip verified on all 8 files.
 
 ## Contract
 

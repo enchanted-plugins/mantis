@@ -22,11 +22,11 @@ The `apply-blueprint.js` step overlays an engineering-blueprint grid
 (navy `#0a1628` paper, `#1e3a5f` major lines / `#16304f` minor lines)
 onto the rendered diagram so it reads as a CAD drawing rather than a
 neutral dark card. This is the shared visual identity across every
-sibling repo (fae, wixie, raven, pech, hydra, sylph, lich).
+sibling repo (emu, wixie, crow, pech, hydra, sylph, lich).
 
 ## Diagram content
 
-- **pipeline.svg** (MNT-001) — seven-sub-plugin architecture. Raven
+- **pipeline.svg** (MNT-001) — seven-sub-plugin architecture. Crow
   change-classification input; lich-core (M1 + M2) static-suspicion
   layer; lich-sandbox (M5) runtime confirmation; lich-preference +
   lich-rubric (M6 + M7) preference-filter and judgment layers;

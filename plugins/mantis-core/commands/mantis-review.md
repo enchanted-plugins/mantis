@@ -8,7 +8,7 @@ Run Lich's static-analysis review on the specified scope. Delegates to the `lich
 Scope options:
 - `hunk` — current file + cursor line range (interactive mode)
 - `file <path>` — full file analysis
-- `pr` — all changes in the current PR (via Raven's change-classification data)
+- `pr` — all changes in the current PR (via Crow's change-classification data)
 
 The review pipeline:
 1. M1 Cousot Interval Propagation flags runtime-failure candidates (div-zero, null deref, OOB, overflow).

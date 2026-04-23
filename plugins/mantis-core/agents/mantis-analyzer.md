@@ -42,7 +42,7 @@ Drives the M1 Cousot Interval Propagation + M2 Falleri Structural Diff pass over
 **Scope fence:**
 - Do not edit files. Read-only investigation.
 - Do not re-scan for CWEs — Hydra R3's lane.
-- Do not re-classify changes — Raven V1/V2's lane.
+- Do not re-classify changes — Crow V1/V2's lane.
 - Do not synthesize witness inputs — that's M4/M5's job in lich-sandbox.
 - Do not emit verdicts — that's lich-verdict's job.
 

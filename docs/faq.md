@@ -4,7 +4,7 @@ Quick answers to questions that don't yet have their own doc. For anything deepe
 
 ## What's the difference between Lich and the other siblings?
 
-Lich answers *"is this code good?"* — it runs a five-engine pipeline over a diff and emits a verdict per finding. Sibling plugins answer different questions in the same session: Wixie engineers prompts, Fae tracks token spend, Raven watches change trust, Hydra scans for security surface, Sylph coordinates git workflow. All are independent installs. See [docs/ecosystem.md](ecosystem.md) for the full map.
+Lich answers *"is this code good?"* — it runs a five-engine pipeline over a diff and emits a verdict per finding. Sibling plugins answer different questions in the same session: Wixie engineers prompts, Emu tracks token spend, Crow watches change trust, Hydra scans for security surface, Sylph coordinates git workflow. All are independent installs. See [docs/ecosystem.md](ecosystem.md) for the full map.
 
 ## Do I need the other siblings to use Lich?
 

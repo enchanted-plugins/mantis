@@ -233,7 +233,7 @@ def gen_dataflow_mermaid(plugins):
                     lines.append(f'    {src} --> {pid}_metrics')
                     break
 
-    lines.append('    report["📊 /fae:report<br/>Aggregates all metrics"]')
+    lines.append('    report["📊 /emu:report<br/>Aggregates all metrics"]')
     for p in plugins:
         pid = p["short"].replace("-", "_")
         lines.append(f'    {pid}_metrics --> report')

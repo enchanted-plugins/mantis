@@ -2,11 +2,11 @@
 
 *Phase 3 · Plugin #6 · enchanted-plugins · answers the developer's sixth question: "Is this code good?"*
 
-**Name.** Lich. After the Lich Lords of Hollow Knight — gate-reviewers who judge worthiness through trial before letting you pass. Every PR is a supplicant at the gate; every engine is a test the code must survive. Lich joins Raven (change comprehension) and Sylph (git flow) in the Hollow Knight cluster — three HK entities for three related dev-surface plugins is intentional brand signal. This slot previously carried the placeholder name "Athena"; that name is retired because Athena is a pre-existing mythological figure Supergiant borrowed, not a game-native entity. Lich Lords are game-native and pass the naming convention.
+**Name.** Lich. After the Lich Lords of Hollow Knight — gate-reviewers who judge worthiness through trial before letting you pass. Every PR is a supplicant at the gate; every engine is a test the code must survive. Lich joins Crow (change comprehension) and Sylph (git flow) in the Hollow Knight cluster — three HK entities for three related dev-surface plugins is intentional brand signal. This slot previously carried the placeholder name "Athena"; that name is retired because Athena is a pre-existing mythological figure Supergiant borrowed, not a game-native entity. Lich Lords are game-native and pass the naming convention.
 
 **Engine prefix.** M (single letter, unique across F/A/V/S/W/L).
 
-**Trigger model.** Hybrid. PostToolUse hook subscribes to Raven's change-classification signal (Phase 1: file-tail of `raven/plugins/change-tracker/state/audit.jsonl`; Phase 2: `raven.change.classified` event via enchanted-mcp) and auto-reviews affected hunks. Skill-invoked commands (`/lich-review`, `/lich-explain`) are the manual handle for ad-hoc deep reviews. Silent on DEPLOY, surfacing on HOLD/FAIL.
+**Trigger model.** Hybrid. PostToolUse hook subscribes to Crow's change-classification signal (Phase 1: file-tail of `crow/plugins/change-tracker/state/audit.jsonl`; Phase 2: `crow.change.classified` event via enchanted-mcp) and auto-reviews affected hunks. Skill-invoked commands (`/lich-review`, `/lich-explain`) are the manual handle for ad-hoc deep reviews. Silent on DEPLOY, surfacing on HOLD/FAIL.
 
 **Panel composition.** This document synthesizes four expert lenses: static-analysis researcher, dynamic-analysis & fuzzing engineer, code-review & developer-preference expert, and enchanted-plugins architect. Disagreements are surfaced before resolution.
 
@@ -198,9 +198,9 @@ Model tier: Sonnet default judge. Haiku when Pech's `pech.budget.threshold.cross
 
 ---
 
-## Layer 9: Hydra, Raven, Fae, Pech, Sylph Integration Contract
+## Layer 9: Hydra, Crow, Emu, Pech, Sylph Integration Contract
 
-**Prior art.** The enchanted-plugins ecosystem uses per-plugin `audit.jsonl` files as the Phase 1 source of truth (enchanted-mcp event bus is Phase 2). Hydra's `plugins/vuln-detector/state/audit.jsonl` records are shape `{event:"vuln_detected", ts, file, line, vuln_id, cwe, severity, description, language, tool}` (verified via direct file inspection). Raven's `plugins/change-tracker/state/audit.jsonl` records classify changes. Fae publishes token/cost metrics to `plugins/*/state/metrics.jsonl`. Pech (building) will publish budget-threshold events. Sylph's pre-commit gate already subscribes to `pech.budget.threshold.crossed` and will subscribe to `lich.review.completed` per brand-standard event-envelope convention.
+**Prior art.** The enchanted-plugins ecosystem uses per-plugin `audit.jsonl` files as the Phase 1 source of truth (enchanted-mcp event bus is Phase 2). Hydra's `plugins/vuln-detector/state/audit.jsonl` records are shape `{event:"vuln_detected", ts, file, line, vuln_id, cwe, severity, description, language, tool}` (verified via direct file inspection). Crow's `plugins/change-tracker/state/audit.jsonl` records classify changes. Emu publishes token/cost metrics to `plugins/*/state/metrics.jsonl`. Pech (building) will publish budget-threshold events. Sylph's pre-commit gate already subscribes to `pech.budget.threshold.crossed` and will subscribe to `lich.review.completed` per brand-standard event-envelope convention.
 
 **Options comparison.**
 
@@ -221,7 +221,7 @@ Model tier: Sonnet default judge. Haiku when Pech's `pech.budget.threshold.cross
  "vuln_id":"sql-injection-template-literal","cwe":"CWE-89","severity":"critical",
  "description":"...","language":"typescript","tool":"Write"}
 
-// raven/plugins/change-tracker/state/audit.jsonl → used to detect what Lich should review
+// crow/plugins/change-tracker/state/audit.jsonl → used to detect what Lich should review
 {"event":"change.classified","ts":"2026-04-19T12:34:57Z","file":"src/api.ts",
  "classification":"behavior-change","trust_score":0.62,"hunks":[...]}
 ```
@@ -237,8 +237,8 @@ Model tier: Sonnet default judge. Haiku when Pech's `pech.budget.threshold.cross
 
 **Non-duplication invariants.**
 - Lich NEVER re-scans for CWE-89 SQL injection, CWE-79 XSS, CWE-918 SSRF, or any other CWE-tagged security finding. These are Hydra R3's lane. If Hydra's audit.jsonl already has a CRITICAL CWE on the file, Lich *increases review-attention weight* for M6 and adds a "Security context: Hydra flagged {cwe} {severity}" note to M7's rubric input, but does not re-classify the finding.
-- Lich NEVER re-classifies a change. Raven's V1 Semantic Diff + V2 Bayesian Trust output is authoritative. Lich is a *consumer*, not a peer classifier.
-- Lich consumes but does not mutate Fae's token metrics. M7 judge-tier downshift to Haiku under Pech budget pressure is the only cross-plugin control flow Lich exercises.
+- Lich NEVER re-classifies a change. Crow's V1 Semantic Diff + V2 Bayesian Trust output is authoritative. Lich is a *consumer*, not a peer classifier.
+- Lich consumes but does not mutate Emu's token metrics. M7 judge-tier downshift to Haiku under Pech budget pressure is the only cross-plugin control flow Lich exercises.
 
 ### Event-Bus Contract
 
@@ -254,16 +254,16 @@ Model tier: Sonnet default judge. Haiku when Pech's `pech.budget.threshold.cross
 
 | Event | Source | Effect |
 |-------|--------|--------|
-| `raven.change.classified` | Raven | Triggers Lich review on hunks above a configurable trust threshold |
+| `crow.change.classified` | Crow | Triggers Lich review on hunks above a configurable trust threshold |
 | `hydra.vuln.detected` | Hydra | Boosts M6 attention weight for the affected file; adds security context note to M7 input |
 | `pech.budget.threshold.crossed` | Pech | Downshifts M7 judge from Sonnet → Haiku at 80% budget |
-| `fae.runway.threshold.crossed` | Fae | Pauses M5 sandbox runs (CPU budget conservation) until runway recovers |
+| `emu.runway.threshold.crossed` | Emu | Pauses M5 sandbox runs (CPU budget conservation) until runway recovers |
 
 ---
 
 ## Layer 10: Sub-Plugin Breakdown & Developer Query Path
 
-**Prior art.** Fae-style marketplace: one sub-plugin per engine OR one per orthogonal concern (language adapter, cross-plugin router, developer-UX surface). Hydra ships 5 sub-plugins (secret-scanner, vuln-detector, action-guard, config-shield, audit-trail); Sylph ships 5 similarly organized. The meta `full` plugin pulls all siblings via dependency resolution.
+**Prior art.** Emu-style marketplace: one sub-plugin per engine OR one per orthogonal concern (language adapter, cross-plugin router, developer-UX surface). Hydra ships 5 sub-plugins (secret-scanner, vuln-detector, action-guard, config-shield, audit-trail); Sylph ships 5 similarly organized. The meta `full` plugin pulls all siblings via dependency resolution.
 
 **Options comparison.**
 
@@ -319,8 +319,8 @@ Deferred: web dashboard (Phase 4 with enchanted-mcp), IDE hover-tips (VSCode ext
 | M7 judge tiers | Sonnet default, Haiku under Pech budget, Opus adjudication | Cost contract with Pech | Uncontrolled Opus spend |
 | Verdict | DEPLOY/HOLD/FAIL with hard floors + composite | Interpretable + catches both kinds of bugs | Weighted-score vibes |
 | Hydra integration | File-read of `vuln-detector/state/audit.jsonl` (P1), event (P2) | Non-duplication of R3 | Double-reporting CWEs |
-| Raven integration | Subscribe to `raven.change.classified` | Consumer, not re-classifier | Peer-level drift |
-| Sub-plugin count | 7 + `full` meta | Fae-style sliceable granularity | Over-slicing |
+| Crow integration | Subscribe to `crow.change.classified` | Consumer, not re-classifier | Peer-level drift |
+| Sub-plugin count | 7 + `full` meta | Emu-style sliceable granularity | Over-slicing |
 
 ### Plugin Package Layout
 
@@ -431,10 +431,10 @@ lich/
 
 | Event | Source | Effect on Lich |
 |-------|--------|------------------|
-| `raven.change.classified` | Raven | Trigger review on affected hunks |
+| `crow.change.classified` | Crow | Trigger review on affected hunks |
 | `hydra.vuln.detected` | Hydra | Boost M6 attention weight; annotate M7 input |
 | `pech.budget.threshold.crossed` | Pech | Downshift M7 judge (Sonnet → Haiku) at 80% |
-| `fae.runway.threshold.crossed` | Fae | Pause M5 sandbox runs until runway recovers |
+| `emu.runway.threshold.crossed` | Emu | Pause M5 sandbox runs until runway recovers |
 
 ### Runtime-Failure Coverage Matrix
 
@@ -539,7 +539,7 @@ Columns: M1 (Cousot Interval Propagation), M5 (Bounded Subprocess Dry-Run), M6 (
 - Engines: M1 Cousot Interval Propagation + M2 Falleri Structural Diff + M5 Bounded Subprocess Dry-Run + M6 Bayesian Preference Accumulation + M7 Zheng Pairwise Rubric Judgment.
 - Languages: `lich-python` + `lich-typescript` only.
 - Platform: Unix-only for M5; Windows skips M5 with honest note.
-- Integration: File-based reads from Hydra/Raven audit.jsonl; no MCP yet.
+- Integration: File-based reads from Hydra/Crow audit.jsonl; no MCP yet.
 - Surfaces: `/lich-review`, `/lich-explain`, `/lich-disable`, PostToolUse hook, status-line badge, PDF report.
 - Exit criteria: all 7 sub-plugins installable via `full` meta, pass smoke test `tests/run-all.sh`, architecture doc shipped.
 
@@ -547,7 +547,7 @@ Columns: M1 (Cousot Interval Propagation), M5 (Bounded Subprocess Dry-Run), M6 (
 - Engines added: M3 Yamaguchi Property-Graph Traversal (Joern-style CPG substrate), M4 Type-Reflected Invariant Synthesis (Hypothesis-ghostwriter upgrade to M5 input synthesis), Schleimer Winnowing Clone Detection (code duplicate detection), O'Hearn Separation-Logic Bi-Abduction (Java/C++/ObjC resource-ownership), Cohort Similarity Borrowing (M6 cold-start via cohort priors).
 - Languages added: `lich-rust` + `lich-go` + `lich-java` + `lich-kotlin`.
 - Platform: M5 Windows support via Job Objects backend.
-- Integration: Migrate file-reads to MCP event bus (`raven.change.classified`, `hydra.vuln.detected`, `pech.budget.threshold.crossed`).
+- Integration: Migrate file-reads to MCP event bus (`crow.change.classified`, `hydra.vuln.detected`, `pech.budget.threshold.crossed`).
 - Additional surfaces: VSCode extension hover-tips; Slack bot on PR events.
 
 ### Draft CLAUDE.md
@@ -585,7 +585,7 @@ Columns: M1 (Cousot Interval Propagation), M5 (Bounded Subprocess Dry-Run), M6 (
 | Sub-plugin count | `{{SUB_PLUGIN_COUNT}}` | `7` + `full` meta |
 | Trigger model | `{{TRIGGER_MODEL}}` | `hybrid` (PostToolUse hook + skill-invoked) |
 | Events published | `{{EVENT_PUBLISH_LIST}}` | `lich.review.completed, lich.rule.disabled, lich.sandbox.failed` |
-| Events subscribed | `{{EVENT_SUBSCRIBE_LIST}}` | `raven.change.classified, hydra.vuln.detected, pech.budget.threshold.crossed, fae.runway.threshold.crossed` |
+| Events subscribed | `{{EVENT_SUBSCRIBE_LIST}}` | `crow.change.classified, hydra.vuln.detected, pech.budget.threshold.crossed, emu.runway.threshold.crossed` |
 | Repo URL | `{{REPO_URL}}` | `https://github.com/enchanted-plugins/lich` |
 | Plugin home dir | `{{PLUGIN_HOME_DIR}}` | `~/.claude/plugins/lich` |
 

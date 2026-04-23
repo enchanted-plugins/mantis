@@ -14,7 +14,7 @@ Flags queue for **lich-sandbox** M5 confirmation; outputs feed **lich-verdict** 
 ## Non-duplication
 
 - **Never re-scans for CWE-tagged security findings.** Hydra's R3 OWASP Vulnerability Graph owns that. If Hydra flagged the file, lich-core boosts M6 attention weight and annotates M7 rubric input — does not re-classify.
-- **Never re-classifies changes.** Raven's V1 Semantic Diff + V2 Bayesian Trust are authoritative. lich-core consumes Raven's trust score into M6 priors; does not peer-classify.
+- **Never re-classifies changes.** Crow's V1 Semantic Diff + V2 Bayesian Trust are authoritative. lich-core consumes Crow's trust score into M6 priors; does not peer-classify.
 
 ## Install
 

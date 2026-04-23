@@ -19,7 +19,7 @@ M6 is genuinely novel — the first principled per-developer Bayesian posterior 
 
 ## Non-duplication
 
-- Does not override Raven's trust score — consumes it as a prior *multiplier*, not a replacement.
+- Does not override Crow's trust score — consumes it as a prior *multiplier*, not a replacement.
 - Does not make security findings "preferable" or "unpreferable" — Hydra R3's lane is out of scope.
 
 ## Install

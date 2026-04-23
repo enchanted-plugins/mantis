@@ -1,7 +1,7 @@
 """Subscriber helpers — Phase 2 seed.
 
 These read the bus tail for events published by sibling plugins
-(Raven, Hydra, Pech). In v2, siblings live in separate repos and do
+(Crow, Hydra, Pech). In v2, siblings live in separate repos and do
 not publish into this bus. Each helper therefore returns None / False
 when no matching event exists — the no-op read is expected and correct.
 
@@ -10,7 +10,7 @@ helpers keep their exact signatures; only ``bus.subscribe`` changes
 underneath.
 
 Contract (per root CLAUDE.md):
-  * ``check_for_raven_boost(file)`` — Raven's V1 trust-score is the
+  * ``check_for_raven_boost(file)`` — Crow's V1 trust-score is the
     authoritative change classifier. Lich consumes, never re-classifies.
   * ``check_for_hydra_context(file)`` — Hydra owns CWE taxonomy.
     Lich attaches context, never re-reports.
@@ -35,21 +35,21 @@ except ImportError:
 
 
 # ---------------------------------------------------------------------------
-# Raven — change.classified (trust score for M6 prior weighting)
+# Crow — change.classified (trust score for M6 prior weighting)
 # ---------------------------------------------------------------------------
 
 
 def check_for_raven_boost(file: str,
                             bus_path: Optional[Path] = None) -> Optional[float]:
-    """Return trust-score delta from the most recent Raven event for this file.
+    """Return trust-score delta from the most recent Crow event for this file.
 
-    Payload contract (Raven V1):
+    Payload contract (Crow V1):
         {"file": "...", "trust": 0.62, "classification": "..."}
 
     Returns None when no matching event exists.
     """
     latest_trust: Optional[float] = None
-    for ev in subscribe(topic="raven.change.classified", bus_path=bus_path):
+    for ev in subscribe(topic="crow.change.classified", bus_path=bus_path):
         payload = ev.payload or {}
         if payload.get("file") != file:
             continue

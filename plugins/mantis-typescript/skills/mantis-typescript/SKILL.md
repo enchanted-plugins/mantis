@@ -48,7 +48,7 @@ Findings flow through the standard lich pipeline: lich-core → lich-sandbox (M1
 - **F14 version drift** — biome JSON output or tsc diagnostic format changes. Pin tested version range; warn on mismatch.
 - **F04 task drift** — re-implementing biome rules. Don't; the adapter maps, biome does the work.
 - **F07 over-helpful substitution** — `biome check --apply`. Never. Lich is advisory.
-- **F13 distractor pollution** — on a 10k-line file, biome may emit hundreds of findings; filter to changed hunks (from Raven's change classification) before mapping.
+- **F13 distractor pollution** — on a 10k-line file, biome may emit hundreds of findings; filter to changed hunks (from Crow's change classification) before mapping.
 
 ## Why Haiku tier
 
