@@ -206,7 +206,7 @@ Every review produces a JSONL row in `lich-rubric/state/verdicts.jsonl` with the
 
 ## Roadmap
 
-Tracked in [docs/ROADMAP.md](docs/ROADMAP.md) and the shared [ecosystem map](https://github.com/enchanted-plugins/wixie/blob/main/docs/ecosystem.md). For upcoming work specific to Lich, see issues tagged [roadmap](https://github.com/enchanted-plugins/lich/labels/roadmap).
+Tracked in [docs/ROADMAP.md](docs/ROADMAP.md) and the shared [ecosystem map](docs/ecosystem.md). For upcoming work specific to Lich, see issues tagged [roadmap](https://github.com/enchanted-plugins/lich/labels/roadmap).
 
 ## The Science Behind Lich
 

@@ -22,6 +22,6 @@ Lich is Phase 3 #6 in the @enchanted-plugins ecosystem rollout and has not shipp
 - `/lich-review` slash command: static suspicion → sandboxed confirmation → Bayesian weighting → rubric judgment.
 - Integration with Sylph's PR lifecycle: findings posted on the PR body when `/sylph:pr` is used.
 
-Track progress in [ROADMAP.md](docs/ROADMAP.md) and the [ecosystem map](https://github.com/enchanted-plugins/wixie/blob/main/docs/ecosystem.md).
+Track progress in [ROADMAP.md](docs/ROADMAP.md) and the [ecosystem map](docs/ecosystem.md).
 
 [Unreleased]: https://github.com/enchanted-plugins/lich/commits/main
