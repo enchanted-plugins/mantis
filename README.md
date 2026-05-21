@@ -1,7 +1,7 @@
 # Lich
 
 <p align="center">
-  <img src="docs/assets/social-preview.jpg" alt="Lich mascot" width="1280">
+  <img src="docs/assets/hero.png" alt="Lich mascot" width="1280">
 </p>
 
 <p>
