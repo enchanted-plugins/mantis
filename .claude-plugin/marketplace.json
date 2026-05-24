@@ -15,8 +15,8 @@
       "category": "meta"
     },
     {
-      "name": "mantis-core",
-      "source": "./plugins/mantis-core",
+      "name": "lich-core",
+      "source": "./plugins/lich-core",
       "description": "M1 Cousot Interval Propagation + M2 Falleri Structural Diff. The static-analysis substrate that flags division-by-zero, null deref, OOB, overflow via abstract interpretation, and isolates semantic edits via GumTree AST diffing. Paired with lich-sandbox (M5) for confirmation.",
       "category": "plugin"
     },
@@ -27,32 +27,32 @@
       "category": "plugin"
     },
     {
-      "name": "mantis-python",
-      "source": "./plugins/mantis-python",
+      "name": "lich-python",
+      "source": "./plugins/lich-python",
       "description": "Python language adapter for Lich. Maps ruff rule IDs (~900 rules) into M-engine outputs and contributes Python-specific idiom rules (pyupgrade modernization, typing, async-await patterns, list/dict comprehensions). At launch: ~120 of ruff's 900 rules mapped; remaining tagged as Phase 2 coverage gap.",
       "category": "plugin"
     },
     {
-      "name": "mantis-rubric",
-      "source": "./plugins/mantis-rubric",
+      "name": "lich-rubric",
+      "source": "./plugins/lich-rubric",
       "description": "M7 Zheng Pairwise Rubric Judgment. 5-axis LLM-as-judge scoring (Clarity, Correctness-at-glance, Idiom-fit, Testability, Simplicity) with position-swap debiasing and Cohen's Kappa inter-judge reliability. Catches style/idiom/clarity signals static engines miss. Sonnet default judge; Haiku under Pech budget pressure; Opus for disagreement adjudication.",
       "category": "plugin"
     },
     {
-      "name": "mantis-sandbox",
-      "source": "./plugins/mantis-sandbox",
+      "name": "lich-sandbox",
+      "source": "./plugins/lich-sandbox",
       "description": "M5 Bounded Subprocess Dry-Run. Confirms M1-flagged runtime-failure candidates by executing witness inputs in a stdlib-only sandbox (resource.setrlimit for CPU/AS/NOFILE/FSIZE + signal.alarm for wall-clock). Unix-only at launch; Windows skips M5 with platform-unsupported verdict.",
       "category": "plugin"
     },
     {
-      "name": "mantis-typescript",
-      "source": "./plugins/mantis-typescript",
+      "name": "lich-typescript",
+      "source": "./plugins/lich-typescript",
       "description": "TypeScript / JavaScript language adapter for Lich. Maps biome rule IDs (~423 rules) into M-engine outputs and contributes TS-specific idiom rules (React hooks exhaustive deps, JSX a11y, narrow-type-guards, any-avoidance). At launch: ~80 of biome's 423 rules mapped; remaining tagged as Phase 2 coverage gap.",
       "category": "plugin"
     },
     {
-      "name": "mantis-verdict",
-      "source": "./plugins/mantis-verdict",
+      "name": "lich-verdict",
+      "source": "./plugins/lich-verdict",
       "description": "Cross-engine verdict synthesizer. Composes M1/M2/M5/M6/M7 outputs into DEPLOY/HOLD/FAIL verdicts per the threshold contract in CLAUDE.md. Publishes lich.review.completed events (Phase 2) or writes to verdict.jsonl (Phase 1). Sylph's pre-commit gate subscribes; FAIL refuses auto-commit.",
       "category": "plugin"
     }
