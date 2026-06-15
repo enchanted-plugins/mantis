@@ -1,0 +1,30 @@
+{
+  "name": "lich-rubric",
+  "version": "0.1.0",
+  "description": "M7 Zheng Pairwise Rubric Judgment. 5-axis LLM-as-judge scoring (Clarity, Correctness-at-glance, Idiom-fit, Testability, Simplicity) with position-swap debiasing and Cohen's Kappa inter-judge reliability. Catches style/idiom/clarity signals static engines miss. Sonnet default judge; Haiku under Pech budget pressure; Opus for disagreement adjudication.",
+  "author": {
+    "name": "Enchanter Labs"
+  },
+  "license": "MIT",
+  "keywords": [
+    "llm-as-judge",
+    "rubric",
+    "cohen-kappa",
+    "position-debiasing"
+  ],
+  "interface": {
+    "displayName": "Lich Rubric",
+    "shortDescription": "M7 Zheng Pairwise Rubric Judgment. 5-axis LLM-as-judge scoring (Clarity, Correc\u2026",
+    "longDescription": "M7 Zheng Pairwise Rubric Judgment. 5-axis LLM-as-judge scoring (Clarity, Correctness-at-glance, Idiom-fit, Testability, Simplicity) with position-swap debiasing and Cohen's Kappa inter-judge reliability. Catches style/idiom/clarity signals static engines miss. Sonnet default judge; Haiku under Pech budget pressure; Opus for disagreement adjudication.",
+    "developerName": "Enchanter Labs",
+    "category": "Productivity",
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Use Lich Rubric on my project"
+    ]
+  },
+  "skills": "./skills/"
+}

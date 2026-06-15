@@ -1,0 +1,30 @@
+{
+  "name": "lich-preference",
+  "version": "0.1.0",
+  "description": "M6 Bayesian Preference Accumulation. Per-(developer, rule) Beta-Binomial posteriors updated on accept/reject signals; Thompson-sampled surfacing with a 5% minimum floor (no rule dies permanently from accumulated rejections). The Gauss Accumulation pattern, academically grounded.",
+  "author": {
+    "name": "Enchanter Labs"
+  },
+  "license": "MIT",
+  "keywords": [
+    "preference-learning",
+    "bayesian",
+    "thompson-sampling",
+    "personalization"
+  ],
+  "interface": {
+    "displayName": "Lich Preference",
+    "shortDescription": "M6 Bayesian Preference Accumulation. Per-(developer, rule) Beta-Binomial poster\u2026",
+    "longDescription": "M6 Bayesian Preference Accumulation. Per-(developer, rule) Beta-Binomial posteriors updated on accept/reject signals; Thompson-sampled surfacing with a 5% minimum floor (no rule dies permanently from accumulated rejections). The Gauss Accumulation pattern, academically grounded.",
+    "developerName": "Enchanter Labs",
+    "category": "Productivity",
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Use Lich Preference on my project"
+    ]
+  },
+  "skills": "./skills/"
+}

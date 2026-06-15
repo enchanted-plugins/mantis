@@ -1,0 +1,104 @@
+{
+  "name": "lich",
+  "interface": {
+    "displayName": "Lich"
+  },
+  "plugins": [
+    {
+      "name": "full",
+      "source": {
+        "source": "local",
+        "path": "./plugins/full"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    },
+    {
+      "name": "lich-core",
+      "source": {
+        "source": "local",
+        "path": "./plugins/lich-core"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    },
+    {
+      "name": "lich-preference",
+      "source": {
+        "source": "local",
+        "path": "./plugins/lich-preference"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    },
+    {
+      "name": "lich-python",
+      "source": {
+        "source": "local",
+        "path": "./plugins/lich-python"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    },
+    {
+      "name": "lich-rubric",
+      "source": {
+        "source": "local",
+        "path": "./plugins/lich-rubric"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    },
+    {
+      "name": "lich-sandbox",
+      "source": {
+        "source": "local",
+        "path": "./plugins/lich-sandbox"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    },
+    {
+      "name": "lich-typescript",
+      "source": {
+        "source": "local",
+        "path": "./plugins/lich-typescript"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    },
+    {
+      "name": "lich-verdict",
+      "source": {
+        "source": "local",
+        "path": "./plugins/lich-verdict"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

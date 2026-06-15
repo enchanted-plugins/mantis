@@ -1,0 +1,28 @@
+{
+  "name": "full",
+  "version": "0.1.0",
+  "description": "Meta-plugin. One install pulls in all 7 Lich sub-plugins via dependency resolution: lich-core, lich-sandbox, lich-preference, lich-rubric, lich-python, lich-typescript, lich-verdict.",
+  "author": {
+    "name": "Enchanter Labs"
+  },
+  "license": "MIT",
+  "keywords": [
+    "meta",
+    "full-install",
+    "lich"
+  ],
+  "interface": {
+    "displayName": "Full",
+    "shortDescription": "Meta-plugin. One install pulls in all 7 Lich sub-plugins via dependency resolut\u2026",
+    "longDescription": "Meta-plugin. One install pulls in all 7 Lich sub-plugins via dependency resolution: lich-core, lich-sandbox, lich-preference, lich-rubric, lich-python, lich-typescript, lich-verdict.",
+    "developerName": "Enchanter Labs",
+    "category": "Productivity",
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Use Full on my project"
+    ]
+  }
+}

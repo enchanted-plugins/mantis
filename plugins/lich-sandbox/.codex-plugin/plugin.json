@@ -1,0 +1,30 @@
+{
+  "name": "lich-sandbox",
+  "version": "0.1.0",
+  "description": "M5 Bounded Subprocess Dry-Run. Confirms M1-flagged runtime-failure candidates by executing witness inputs in a stdlib-only sandbox (resource.setrlimit for CPU/AS/NOFILE/FSIZE + signal.alarm for wall-clock). Unix-only at launch; Windows skips M5 with platform-unsupported verdict.",
+  "author": {
+    "name": "Enchanter Labs"
+  },
+  "license": "MIT",
+  "keywords": [
+    "sandbox",
+    "dynamic-analysis",
+    "runtime-confirmation",
+    "bounded-execution"
+  ],
+  "interface": {
+    "displayName": "Lich Sandbox",
+    "shortDescription": "M5 Bounded Subprocess Dry-Run. Confirms M1-flagged runtime-failure candidates b\u2026",
+    "longDescription": "M5 Bounded Subprocess Dry-Run. Confirms M1-flagged runtime-failure candidates by executing witness inputs in a stdlib-only sandbox (resource.setrlimit for CPU/AS/NOFILE/FSIZE + signal.alarm for wall-clock). Unix-only at launch; Windows skips M5 with platform-unsupported verdict.",
+    "developerName": "Enchanter Labs",
+    "category": "Productivity",
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Use Lich Sandbox on my project"
+    ]
+  },
+  "skills": "./skills/"
+}

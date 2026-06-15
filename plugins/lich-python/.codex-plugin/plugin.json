@@ -1,0 +1,30 @@
+{
+  "name": "lich-python",
+  "version": "0.1.0",
+  "description": "Python language adapter for Lich. Maps ruff rule IDs (~900 rules) into M-engine outputs and contributes Python-specific idiom rules (pyupgrade modernization, typing, async-await patterns, list/dict comprehensions). At launch: ~120 of ruff's 900 rules mapped; remaining tagged as Phase 2 coverage gap.",
+  "author": {
+    "name": "Enchanter Labs"
+  },
+  "license": "MIT",
+  "keywords": [
+    "python",
+    "language-adapter",
+    "ruff",
+    "idiom"
+  ],
+  "interface": {
+    "displayName": "Lich Python",
+    "shortDescription": "Python language adapter for Lich. Maps ruff rule IDs (~900 rules) into M-engine\u2026",
+    "longDescription": "Python language adapter for Lich. Maps ruff rule IDs (~900 rules) into M-engine outputs and contributes Python-specific idiom rules (pyupgrade modernization, typing, async-await patterns, list/dict comprehensions). At launch: ~120 of ruff's 900 rules mapped; remaining tagged as Phase 2 coverage gap.",
+    "developerName": "Enchanter Labs",
+    "category": "Productivity",
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Use Lich Python on my project"
+    ]
+  },
+  "skills": "./skills/"
+}

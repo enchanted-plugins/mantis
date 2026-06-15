@@ -1,0 +1,29 @@
+{
+  "name": "lich-verdict",
+  "version": "0.1.0",
+  "description": "Cross-engine verdict synthesizer. Composes M1/M2/M5/M6/M7 outputs into DEPLOY/HOLD/FAIL verdicts per the threshold contract in CLAUDE.md. Publishes lich.review.completed events (Phase 2) or writes to verdict.jsonl (Phase 1). Sylph's pre-commit gate subscribes; FAIL refuses auto-commit.",
+  "author": {
+    "name": "Enchanter Labs"
+  },
+  "license": "MIT",
+  "keywords": [
+    "verdict",
+    "composition",
+    "event-emission",
+    "deploy-hold-fail"
+  ],
+  "interface": {
+    "displayName": "Lich Verdict",
+    "shortDescription": "Cross-engine verdict synthesizer. Composes M1/M2/M5/M6/M7 outputs into DEPLOY/H\u2026",
+    "longDescription": "Cross-engine verdict synthesizer. Composes M1/M2/M5/M6/M7 outputs into DEPLOY/HOLD/FAIL verdicts per the threshold contract in CLAUDE.md. Publishes lich.review.completed events (Phase 2) or writes to verdict.jsonl (Phase 1). Sylph's pre-commit gate subscribes; FAIL refuses auto-commit.",
+    "developerName": "Enchanter Labs",
+    "category": "Productivity",
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Use Lich Verdict on my project"
+    ]
+  }
+}

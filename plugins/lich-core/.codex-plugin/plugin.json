@@ -1,0 +1,30 @@
+{
+  "name": "lich-core",
+  "version": "0.1.0",
+  "description": "M1 Cousot Interval Propagation + M2 Falleri Structural Diff. The static-analysis substrate that flags division-by-zero, null deref, OOB, overflow via abstract interpretation, and isolates semantic edits via GumTree AST diffing. Paired with lich-sandbox (M5) for confirmation.",
+  "author": {
+    "name": "Enchanter Labs"
+  },
+  "license": "MIT",
+  "keywords": [
+    "code-review",
+    "static-analysis",
+    "abstract-interpretation",
+    "ast-diff"
+  ],
+  "interface": {
+    "displayName": "Lich Core",
+    "shortDescription": "M1 Cousot Interval Propagation + M2 Falleri Structural Diff. The static-analysi\u2026",
+    "longDescription": "M1 Cousot Interval Propagation + M2 Falleri Structural Diff. The static-analysis substrate that flags division-by-zero, null deref, OOB, overflow via abstract interpretation, and isolates semantic edits via GumTree AST diffing. Paired with lich-sandbox (M5) for confirmation.",
+    "developerName": "Enchanter Labs",
+    "category": "Productivity",
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Use Lich Core on my project"
+    ]
+  },
+  "skills": "./skills/"
+}

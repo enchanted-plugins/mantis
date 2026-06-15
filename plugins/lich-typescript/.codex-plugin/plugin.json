@@ -1,0 +1,31 @@
+{
+  "name": "lich-typescript",
+  "version": "0.1.0",
+  "description": "TypeScript / JavaScript language adapter for Lich. Maps biome rule IDs (~423 rules) into M-engine outputs and contributes TS-specific idiom rules (React hooks exhaustive deps, JSX a11y, narrow-type-guards, any-avoidance). At launch: ~80 of biome's 423 rules mapped; remaining tagged as Phase 2 coverage gap.",
+  "author": {
+    "name": "Enchanter Labs"
+  },
+  "license": "MIT",
+  "keywords": [
+    "typescript",
+    "javascript",
+    "language-adapter",
+    "biome",
+    "idiom"
+  ],
+  "interface": {
+    "displayName": "Lich Typescript",
+    "shortDescription": "TypeScript / JavaScript language adapter for Lich. Maps biome rule IDs (~423 ru\u2026",
+    "longDescription": "TypeScript / JavaScript language adapter for Lich. Maps biome rule IDs (~423 rules) into M-engine outputs and contributes TS-specific idiom rules (React hooks exhaustive deps, JSX a11y, narrow-type-guards, any-avoidance). At launch: ~80 of biome's 423 rules mapped; remaining tagged as Phase 2 coverage gap.",
+    "developerName": "Enchanter Labs",
+    "category": "Productivity",
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Use Lich Typescript on my project"
+    ]
+  },
+  "skills": "./skills/"
+}
