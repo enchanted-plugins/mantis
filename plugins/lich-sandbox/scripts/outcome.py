@@ -27,6 +27,21 @@ _EXPECTED: dict[str, frozenset[str]] = {
     "null-deref": frozenset({"AttributeError", "TypeError"}),
 }
 
+# Infrastructure exit codes reserved by the child runner (bridge/_child_runner.py,
+# runners/python.py). Each means the harness failed to execute the target — the
+# function under test never ran — so a non-match is NOT evidence of "no bug".
+# classify() MUST fail closed to an infra status here; letting these fall through
+# to no-bug-found manufactured false DEPLOYs (VF-06). Note _child_runner.py:93
+# already assumed this routing existed ("Exit 5 so outcome.classify routes to
+# sandbox-error"). A genuine target bug exits 1 (child `except BaseException`),
+# never 2-5, so this branch cannot swallow a real finding.
+_INFRA_EXIT_CODES: dict[int, tuple[str, str | None]] = {
+    2: ("input-synthesis-failed", "WitnessPayloadInvalid"),
+    3: ("sandbox-error", "TargetLoadFailed"),
+    4: ("input-synthesis-failed", "TargetFunctionMissing"),
+    5: ("sandbox-error", "TargetImportOrCapFailure"),
+}
+
 # Regex extracting `ErrorClass: message` on the last non-empty traceback line.
 _TRACEBACK_TAIL = re.compile(r"^(\w+(?:Error|Exception)):", re.MULTILINE)
 
@@ -51,9 +66,11 @@ def classify(
         1. SIGALRM anywhere -> timeout-without-confirmation (child alarm).
         2. SIGXFSZ -> sandbox-error (write cap exceeded; not a finding).
         3. SIGKILL with cap-exceeded markers -> sandbox-error (AS/CPU).
-        4. exit 0 and clean stderr -> no-bug-found.
-        5. exit != 0 with matching error class -> confirmed-bug.
-        6. exit != 0 with mismatched error -> no-bug-found (v1 policy).
+        4. reserved infra exit code (2-5) -> infra status, never no-bug-found
+           (the target never executed; VF-06).
+        5. exit 0 and clean stderr -> no-bug-found.
+        6. exit != 0 with matching error class -> confirmed-bug.
+        7. exit != 0 with mismatched error -> no-bug-found (v1 policy).
     """
     # Signal-driven outcomes first.
     if signal_name == "SIGALRM":
@@ -64,6 +81,11 @@ def classify(
         # Heuristic: if stderr carries MemoryError / resource markers, it's
         # the AS cap. Either way this is infra, not a finding.
         return "sandbox-error", "ResourceCapExceeded"
+
+    # Infrastructure exit codes: the target never executed. Fail closed to an
+    # infra status — never no-bug-found (VF-06).
+    if exit_code in _INFRA_EXIT_CODES:
+        return _INFRA_EXIT_CODES[exit_code]
 
     # Clean run.
     if exit_code == 0 and _extract_error_class(stderr) is None:
