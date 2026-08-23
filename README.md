@@ -111,7 +111,7 @@ Lich defers security-lane findings to Hydra (CWE classification, pattern databas
 
 ## The Full Lifecycle
 
-A review flows top-to-bottom through five stages. **M1 Cousot Interval Propagation** (lich-core) propagates abstract ranges over the changed hunks, flagging suspicious assignments and divisions. **M2 Falleri Structural Diff** (lich-core) clusters the changes by AST edit distance, so a 200-line rename collapses to one finding. **M5 Bounded Subprocess Dry-Run** (lich-sandbox) sandbox-executes each flagged hunk and observes runtime behavior. **M6 Bayesian Preference Accumulation** (lich-preference) weights findings by this developer's per-rule posterior. **M7 Zheng Pairwise Rubric Judgment** (lich-rubric) scores the aggregate along a 5-axis rubric and routes the verdict through `lich-verdict` (DEPLOY / HOLD / FAIL).
+A review flows top-to-bottom through five stages. **M1 Cousot Interval Propagation** (lich-core) *triages* — the reviewing LLM reads the changed hunks with `Read`/`Grep`/`Glob` and reasons through the interval + nullability propagation by hand, flagging suspicious assignments and divisions; it has no Bash and does not itself invoke a real parser. **M2 Falleri Structural Diff** (lich-core) is the same LLM-triage step, clustering changes by apparent edit distance so a 200-line rename collapses to one finding. **M5 Bounded Subprocess Dry-Run** (lich-sandbox) is the one stage that genuinely executes: it has Bash and sandbox-executes each M1-flagged hunk in a real subprocess, observing the actual runtime behavior. **M6 Bayesian Preference Accumulation** (lich-preference) deterministically weights findings by this developer's per-rule posterior. **M7 Zheng Pairwise Rubric Judgment** (lich-rubric) is an LLM judgment pass that scores the aggregate along a 5-axis rubric and routes the verdict through `lich-verdict` (DEPLOY / HOLD / FAIL).
 
 <p align="center">
   <a href="docs/assets/lifecycle.mmd" title="View lifecycle source (Mermaid)">
@@ -155,14 +155,19 @@ cd lich
 Without `./scripts/bootstrap.sh`, conduct imports will silently miss and Claude Code's `@`-loader will fail-soft. Always bootstrap first.
 ## 6 Sub-Plugins, 3 Agents, 5 Engines
 
-| Sub-plugin | Owns | Trigger | Agent |
-|------------|------|---------|-------|
-| [lich-core](plugins/lich-core/) | M1 Cousot Interval + M2 Falleri Structural Diff | skill-invoked | static-surface (Sonnet) |
-| [lich-sandbox](plugins/lich-sandbox/) | M5 Bounded Subprocess Dry-Run | skill-invoked | sandbox-runner (Sonnet) |
-| [lich-preference](plugins/lich-preference/) | M6 Bayesian Preference Accumulation | hook-driven (PostToolUse) | preference-learner (Haiku) |
-| [lich-rubric](plugins/lich-rubric/) | M7 Zheng Pairwise Rubric Judgment | skill-invoked | rubric-judge (Sonnet) |
-| [lich-python](plugins/lich-python/) | Python AST adapter | skill-invoked | — |
-| [lich-typescript](plugins/lich-typescript/) | TypeScript AST adapter | skill-invoked | — |
+Lich mixes two different execution models across its engines — worth naming explicitly so nobody assumes M1 runs with the same rigor as M5:
+
+- **Deterministic / actually-executed** — the engine runs real code with no LLM in the loop for the verdict itself. Today that's only **M5** (`lich-sandbox`, `tools: [Read, Bash]`): it forks a subprocess under `resource.setrlimit` and observes the real outcome. `lich-python`/`lich-typescript` are also code-executing adapters (`tools: [Read, Bash]`) that shell out to `ruff`/`tsc`.
+- **LLM triage (read-only)** — the engine's model reasons over source text with `Read`/`Grep`/`Glob` only; it has no Bash and never actually invokes `ast.parse` or `tsc --generateTrace`. That's **M1/M2** (`lich-core`'s `lich-review` skill) and **M7** (`lich-rubric`) — both are the model *simulating* the described algorithm, not running it. **M6** (`lich-preference`) is deterministic Beta-Binomial math but hook-driven rather than developer-invoked.
+
+| Sub-plugin | Owns | Trigger | Agent | Execution model |
+|------------|------|---------|-------|------------------|
+| [lich-core](plugins/lich-core/) | M1 Cousot Interval + M2 Falleri Structural Diff | skill-invoked | static-surface (Sonnet) | LLM triage (read-only, no Bash) |
+| [lich-sandbox](plugins/lich-sandbox/) | M5 Bounded Subprocess Dry-Run | skill-invoked | sandbox-runner (Sonnet) | Deterministic (real subprocess exec) |
+| [lich-preference](plugins/lich-preference/) | M6 Bayesian Preference Accumulation | hook-driven (PostToolUse) | preference-learner (Haiku) | Deterministic (Beta-Binomial update) |
+| [lich-rubric](plugins/lich-rubric/) | M7 Zheng Pairwise Rubric Judgment | skill-invoked | rubric-judge (Sonnet) | LLM judgment |
+| [lich-python](plugins/lich-python/) | Python AST adapter | skill-invoked | — | Deterministic (shells out to `ruff`) |
+| [lich-typescript](plugins/lich-typescript/) | TypeScript AST adapter | skill-invoked | — | Deterministic (shells out to `tsc`) |
 
 Slash commands:
 
