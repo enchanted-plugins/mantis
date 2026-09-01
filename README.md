@@ -6,7 +6,7 @@
 
 <p>
   <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-3fb950?style=for-the-badge"></a>
-  <img alt="6 plugins" src="https://img.shields.io/badge/Plugins-6-bc8cff?style=for-the-badge">
+  <img alt="7 plugins" src="https://img.shields.io/badge/Plugins-7-bc8cff?style=for-the-badge">
   <img alt="5 engines" src="https://img.shields.io/badge/Engines-M1%E2%80%93M7-58a6ff?style=for-the-badge">
   <img alt="3 agents" src="https://img.shields.io/badge/Agents-3-d29922?style=for-the-badge">
   <img alt="Phase 3 #6" src="https://img.shields.io/badge/Phase-3%20%236-f0883e?style=for-the-badge">
@@ -17,7 +17,7 @@
 
 Code review for AI-assisted development that catches runtime failures compile-time checks miss.
 
-**6 sub-plugins. 5 engines. 3 slash commands. Bayesian per-developer preference. One command.**
+**7 sub-plugins. 5 engines. 3 slash commands. Bayesian per-developer preference. One command.**
 
 > A PR adds `result = user_inputs[i] / n` with `n` coming from a JSON body. M1 Cousot Interval Propagation flags `n` as `[?, ?]` — unknown lower bound, possible zero. M2 Falleri Structural Diff confirms the assignment is new, not refactored. M5 Bounded Subprocess Dry-Run synthesizes a fuzzer input, executes the change in a `resource.setrlimit` sandbox, and observes `ZeroDivisionError`. M7 Zheng Pairwise Rubric judges: 5/10 Robustness, 2/10 Failure Resilience. M6 remembers that *this* developer consistently cares about divide-by-zero — next time the prior floor is 0.72, not 0.50. Verdict: HOLD with specific finding. Zero false positives from style noise. Sylph posts the finding on the PR.
 >
@@ -55,7 +55,7 @@ Not for:
 - [The Full Lifecycle](#the-full-lifecycle)
 - [Install](#install)
 - [Quickstart](#quickstart)
-- [6 Sub-Plugins, 3 Agents, 5 Engines](#6-sub-plugins-3-agents-5-engines)
+- [7 Sub-Plugins, 3 Agents, 5 Engines](#7-sub-plugins-3-agents-5-engines)
 - [What You Get Per Review](#what-you-get-per-review)
 - [Roadmap](#roadmap)
 - [The Science Behind Lich](#the-science-behind-lich)
@@ -131,7 +131,7 @@ Every stage is autonomous; the developer surface is pull (`/lich-review`), not p
 
 ## Install
 
-Lich ships as a 6-sub-plugin marketplace. One meta-plugin — `full` — lists all six as dependencies, so a single install pulls in the whole pipeline.
+Lich ships as a 7-sub-plugin marketplace. One meta-plugin — `full` — lists all seven as dependencies, so a single install pulls in the whole pipeline.
 
 **In Claude Code** (recommended):
 
@@ -140,7 +140,7 @@ Lich ships as a 6-sub-plugin marketplace. One meta-plugin — `full` — lists a
 /plugin install full@lich
 ```
 
-Claude Code resolves the dependency list and installs all 6 sub-plugins. Verify with `/plugin list`.
+Claude Code resolves the dependency list and installs all 7 sub-plugins. Verify with `/plugin list`.
 
 **Want to cherry-pick?** Individual sub-plugins are still installable — e.g. `/plugin install lich-core@lich` if you only want the M1+M2 static surface. Sandbox-less / preference-less modes degrade gracefully; Lich falls back to rules-only verdicts when an engine is missing.
 
@@ -153,7 +153,7 @@ cd lich
 ```
 
 Without `./scripts/bootstrap.sh`, conduct imports will silently miss and Claude Code's `@`-loader will fail-soft. Always bootstrap first.
-## 6 Sub-Plugins, 3 Agents, 5 Engines
+## 7 Sub-Plugins, 3 Agents, 5 Engines
 
 Lich mixes two different execution models across its engines — worth naming explicitly so nobody assumes M1 runs with the same rigor as M5:
 
@@ -168,6 +168,7 @@ Lich mixes two different execution models across its engines — worth naming ex
 | [lich-rubric](plugins/lich-rubric/) | M7 Zheng Pairwise Rubric Judgment | skill-invoked | rubric-judge (Sonnet) | LLM judgment |
 | [lich-python](plugins/lich-python/) | Python AST adapter | skill-invoked | — | Deterministic (shells out to `ruff`) |
 | [lich-typescript](plugins/lich-typescript/) | TypeScript AST adapter | skill-invoked | — | Deterministic (shells out to `tsc`) |
+| [lich-verdict](plugins/lich-verdict/) | Cross-engine verdict synthesis (DEPLOY / HOLD / FAIL) | hook-driven (PostToolUse, Stop) | verdict-synthesizer (Sonnet) | LLM synthesis (threshold math) |
 
 Slash commands:
 
@@ -222,7 +223,7 @@ Tracked in [docs/ROADMAP.md](docs/ROADMAP.md) and the shared [ecosystem map](doc
 
 ## The Science Behind Lich
 
-Every Lich engine is built on a formal mathematical model. Full derivations in [`docs/science/README.md`](docs/science/README.md).
+Every Lich engine is built on a formal mathematical model. Full derivations in [`docs/architecture/lich-architecture.md`](docs/architecture/lich-architecture.md).
 
 <p align="center"><img src="docs/assets/math/m1-interval.svg" alt="M1: Int_v = [lo, hi] join Null(v) join Shape(v); widen after N=3 iterations"></p>
 
