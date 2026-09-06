@@ -52,7 +52,7 @@ See `./plugins/<name>/hooks/hooks.json` for matchers. Agents in `./plugins/<name
 
 ## Algorithms
 
-M1 Cousot Interval Propagation · M2 Falleri Structural Diff · M5 Bounded Subprocess Dry-Run · M6 Bayesian Preference Accumulation · M7 Zheng Pairwise Rubric Judgment. Derivations in `docs/science/README.md`. **Defining engine:** M5 Bounded Subprocess Dry-Run — the static-suspicion → sandboxed-confirmation pipeline is the novel moat no existing reviewer ships at zero-external-dep weight.
+M1 Cousot Interval Propagation · M2 Falleri Structural Diff · M5 Bounded Subprocess Dry-Run · M6 Bayesian Preference Accumulation · M7 Zheng Pairwise Rubric Judgment. Derivations in `docs/architecture/lich-architecture.md`. **Defining engine:** M5 Bounded Subprocess Dry-Run — the static-suspicion → sandboxed-confirmation pipeline is the novel moat no existing reviewer ships at zero-external-dep weight.
 
 | ID | Name | Plugin | Algorithm |
 |----|------|--------|-----------|

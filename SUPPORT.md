@@ -22,7 +22,7 @@ Short version: **pick the right channel, and you'll get an answer faster.**
    - [docs/installation.md](docs/installation.md) — all install paths
    - [docs/troubleshooting.md](docs/troubleshooting.md) — common failures + fixes
    - [docs/architecture/](docs/architecture/) — diagrams of what runs when
-   - [docs/science/README.md](docs/science/README.md) — the algorithms, derived
+   - [docs/architecture/lich-architecture.md](docs/architecture/lich-architecture.md) — the algorithms, derived
 3. **Narrow the bug.** "It sometimes fails" is not reproducible. Minimize the failing case.
 4. **Check the ecosystem.** This plugin is one of several in [`enchanter-ai`](docs/ecosystem.md). Your question may belong in a sibling repo.
 

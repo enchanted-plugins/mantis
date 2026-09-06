@@ -64,7 +64,7 @@ When Sylph's `/sylph:pr` opens a PR, Lich findings from the diff are posted on t
 
 ## Next steps
 
-- [docs/science/README.md](science/README.md) — derivations for M1, M2, M5, M6, M7.
+- [docs/architecture/lich-architecture.md](architecture/lich-architecture.md) — derivations for M1, M2, M5, M6, M7.
 - [docs/architecture/](architecture/) — auto-generated diagram.
 - [README.md](../README.md) § vs Everything Else — honest comparison against Copilot, Cursor, Qodo, and manual review.
 
