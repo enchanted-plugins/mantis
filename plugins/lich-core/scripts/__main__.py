@@ -48,6 +48,16 @@ try:
 except Exception:  # pragma: no cover — advisory
     _learnings = None
 
+# Coverage contract — lets the summary distinguish "analysed and clean" from
+# "analyser was missing / timed out / unsupported".
+try:
+    _SHARED_SCRIPTS = os.path.join(_SHARED, "scripts")
+    if os.path.isdir(_SHARED_SCRIPTS) and _SHARED_SCRIPTS not in sys.path:
+        sys.path.insert(0, _SHARED_SCRIPTS)
+    import coverage as _cov  # type: ignore  # noqa: E402
+except Exception:  # pragma: no cover — advisory
+    _cov = None
+
 
 def _summary(flags) -> dict:
     by_rule: dict[str, int] = {}
@@ -90,20 +100,54 @@ def main(argv: list[str]) -> int:
     if _ext and _ext != ".py" and _adapter_dispatch is not None:
         adapter_flags: list[Flag] = []
         adapters_tried: list[str] = []
+        coverage_entries = []
         for analyze in _adapter_dispatch(path):
+            mod = sys.modules.get(analyze.__module__)
+            name = analyze.__module__.rsplit(".", 1)[-1]
             try:
-                out = analyze(path) or []
-                adapters_tried.append(analyze.__module__.rsplit(".", 1)[-1])
-                adapter_flags.extend(out)
+                # Prefer the coverage-aware entrypoint where the adapter has
+                # one; a bare `analyze` cannot say WHY it returned nothing.
+                if mod is not None and hasattr(mod, "analyze_with_coverage"):
+                    out, cov_entries = mod.analyze_with_coverage(path)
+                    coverage_entries.extend(cov_entries)
+                else:
+                    out = analyze(path) or []
+                    if _cov is not None:
+                        coverage_entries.append(_cov.CoverageEntry(
+                            cls="*", engine=name, depth=_cov.PATTERN,
+                            status=_cov.PARTIAL,
+                            notes=("adapter has no coverage contract; an empty "
+                                   "result is not evidence of cleanliness"),
+                        ))
+                adapters_tried.append(name)
+                adapter_flags.extend(out or [])
             except Exception as e:  # advisory — never raise from M1
                 print(json.dumps({"status": "adapter-error",
                                    "adapter": analyze.__module__, "error": str(e)}),
                        file=sys.stderr)
+                if _cov is not None:
+                    coverage_entries.append(_cov.CoverageEntry(
+                        cls="*", engine=name, depth=_cov.PATTERN,
+                        status=_cov.UNAVAILABLE,
+                        notes=f"adapter raised: {e}",
+                    ))
         written = emit(adapter_flags)
         summary = _summary(adapter_flags)
         summary["written_to"] = DEFAULT_LOG
         summary["lines_written"] = written
         summary["substrate"] = "adapter:" + ",".join(adapters_tried) if adapters_tried else "adapter:none"
+
+        # The whole point: zero flags plus incomplete coverage is NOT clean.
+        if _cov is not None:
+            report = _cov.build_report(
+                tool="lich-core", target_path=path,
+                language=_ext.lstrip("."), findings=adapter_flags,
+                coverage=coverage_entries)
+            summary["analysis_status"] = report["analysis_status"]
+            summary["false_clean_risk"] = report["false_clean_risk"]
+            summary["clean"] = report["clean"]
+            summary["coverage"] = report["coverage"]
+            print(_cov.human_summary(report), file=sys.stderr)
         print(json.dumps(summary), file=sys.stderr)
         return 0
 
