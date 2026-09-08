@@ -183,6 +183,12 @@ def run_staticcheck(
             capture_output=True,
             text=True,
             timeout=timeout_s,
+            # Analyzer output is UTF-8. Without an explicit encoding Python
+            # decodes with the host locale (cp1252 on Windows) and raises
+            # UnicodeDecodeError inside the subprocess reader thread, which
+            # can silently truncate or lose diagnostics.
+            encoding="utf-8",
+            errors="replace",
         )
     except subprocess.TimeoutExpired:
         print(

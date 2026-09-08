@@ -18,13 +18,13 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Callable, List
 
-from . import cpp, go, java, ruby, rust, semgrep, shell
+from . import cpp, go, java, ruby, rust, semgrep, shell, typescript
 
 # Polyglot adapter (semgrep) layers on top of any primary backend.
 _POLYGLOT = (semgrep,)
 
 _BY_EXTENSION: dict[str, tuple] = {}
-for _mod in (go, rust, java, cpp, ruby, shell):
+for _mod in (go, rust, java, cpp, ruby, shell, typescript):
     for _ext in _mod.FILE_EXTENSIONS:
         _BY_EXTENSION[_ext.lower()] = (_mod,)
 
@@ -38,9 +38,10 @@ def dispatch(file_path: str) -> List[Callable]:
 
 # Back-compat exports kept for Agent 4's original surface.
 from .go import analyze as analyze_go
+from .typescript import analyze as analyze_typescript
 from .rust import analyze as analyze_rust
 
 __all__ = [
-    "cpp", "go", "java", "ruby", "rust", "semgrep", "shell",
-    "dispatch", "analyze_go", "analyze_rust",
+    "cpp", "go", "java", "ruby", "rust", "semgrep", "shell", "typescript",
+    "dispatch", "analyze_go", "analyze_rust", "analyze_typescript",
 ]
