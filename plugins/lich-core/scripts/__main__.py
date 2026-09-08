@@ -48,6 +48,21 @@ try:
 except Exception:  # pragma: no cover — advisory
     _learnings = None
 
+# Coverage contract — lets the summary distinguish "analysed and clean" from
+# "analyser was missing / timed out / unsupported".
+try:
+    _SHARED_SCRIPTS = os.path.join(_SHARED, "scripts")
+    if os.path.isdir(_SHARED_SCRIPTS) and _SHARED_SCRIPTS not in sys.path:
+        sys.path.insert(0, _SHARED_SCRIPTS)
+    import coverage as _cov  # type: ignore  # noqa: E402
+except Exception:  # pragma: no cover — advisory
+    _cov = None
+
+try:
+    import handoff as _handoff  # type: ignore  # noqa: E402
+except Exception:  # pragma: no cover — advisory
+    _handoff = None
+
 
 def _summary(flags) -> dict:
     by_rule: dict[str, int] = {}
@@ -90,27 +105,64 @@ def main(argv: list[str]) -> int:
     if _ext and _ext != ".py" and _adapter_dispatch is not None:
         adapter_flags: list[Flag] = []
         adapters_tried: list[str] = []
+        coverage_entries = []
         for analyze in _adapter_dispatch(path):
+            mod = sys.modules.get(analyze.__module__)
+            name = analyze.__module__.rsplit(".", 1)[-1]
             try:
-                out = analyze(path) or []
-                adapters_tried.append(analyze.__module__.rsplit(".", 1)[-1])
-                adapter_flags.extend(out)
+                # Prefer the coverage-aware entrypoint where the adapter has
+                # one; a bare `analyze` cannot say WHY it returned nothing.
+                if mod is not None and hasattr(mod, "analyze_with_coverage"):
+                    out, cov_entries = mod.analyze_with_coverage(path)
+                    coverage_entries.extend(cov_entries)
+                else:
+                    out = analyze(path) or []
+                    if _cov is not None:
+                        coverage_entries.append(_cov.CoverageEntry(
+                            cls="*", engine=name, depth=_cov.PATTERN,
+                            status=_cov.PARTIAL,
+                            notes=("adapter has no coverage contract; an empty "
+                                   "result is not evidence of cleanliness"),
+                        ))
+                adapters_tried.append(name)
+                adapter_flags.extend(out or [])
             except Exception as e:  # advisory — never raise from M1
                 print(json.dumps({"status": "adapter-error",
                                    "adapter": analyze.__module__, "error": str(e)}),
                        file=sys.stderr)
+                if _cov is not None:
+                    coverage_entries.append(_cov.CoverageEntry(
+                        cls="*", engine=name, depth=_cov.PATTERN,
+                        status=_cov.UNAVAILABLE,
+                        notes=f"adapter raised: {e}",
+                    ))
         written = emit(adapter_flags)
         summary = _summary(adapter_flags)
         summary["written_to"] = DEFAULT_LOG
         summary["lines_written"] = written
         summary["substrate"] = "adapter:" + ",".join(adapters_tried) if adapters_tried else "adapter:none"
+
+        # The whole point: zero flags plus incomplete coverage is NOT clean.
+        if _cov is not None:
+            report = _cov.build_report(
+                tool="lich-core", target_path=path,
+                language=_ext.lstrip("."), findings=adapter_flags,
+                coverage=coverage_entries)
+            summary["analysis_status"] = report["analysis_status"]
+            summary["false_clean_risk"] = report["false_clean_risk"]
+            summary["clean"] = report["clean"]
+            summary["coverage"] = report["coverage"]
+            print(_cov.human_summary(report), file=sys.stderr)
         print(json.dumps(summary), file=sys.stderr)
         return 0
 
     # -- Substrate 1: ruff fast-path (optional) ---------------------------
     ruff_flags: list[Flag] = []
+    py_notes: list[str] = []
     ruff_path = ruff_adapter.detect_ruff()
     substrate_tag = "ast-only"
+    if ruff_path is None:
+        py_notes.append("ruff not installed; only the 3 stdlib-ast PY-M1 rules ran")
     if ruff_path is not None:
         substrate_tag = "ruff+ast"
         findings = ruff_adapter.run_ruff(path, ruff_path)
@@ -130,6 +182,7 @@ def main(argv: list[str]) -> int:
                     file=sys.stderr,
                 )
                 ruff_flags = []
+                py_notes.append("ruff registry unreadable; ruff findings unmapped")
 
     # -- Substrate 2: stdlib ast walker (always) --------------------------
     ast_flags: list[Flag] = []
@@ -140,6 +193,7 @@ def main(argv: list[str]) -> int:
             json.dumps({"status": "substrate-parse-failed", "file": path}),
             file=sys.stderr,
         )
+        py_notes.append("source failed to parse; the ast walker analysed nothing")
         # Gauss Accumulation — parse failure is a version-drift signal
         # (or the source predates the current AST substrate).
         if _learnings is not None:
@@ -182,6 +236,48 @@ def main(argv: list[str]) -> int:
     summary["written_to"] = DEFAULT_LOG
     summary["lines_written"] = written
     summary["substrate"] = substrate_tag
+
+    # Coverage for the PYTHON lane. This path previously emitted none at all,
+    # so a .py file with zero flags was indistinguishable from an unanalysed
+    # one - the same false-clean defect the adapters had.
+    if _cov is not None:
+        parse_failed = any("failed to parse" in n for n in py_notes)
+        entries = [_cov.CoverageEntry(
+            cls="correctness", engine=substrate_tag, depth=_cov.AST,
+            status=_cov.DEGRADED if parse_failed else _cov.PARTIAL,
+            shapes_supported=["stdlib-ast interval/nullability/container-shape",
+                              "ruff correctness rules" if ruff_path else
+                              "(ruff absent)"],
+            shapes_unsupported=[
+                "cross-function propagation",
+                "security/CWE classes (deferred; see handoff)",
+                "ruff rule ids absent from the registry",
+            ],
+            notes="; ".join(py_notes) or
+                  "ast walker + ruff completed; under-covers by design")]
+        try:
+            covered, reason = (_handoff.may_suppress("injection", path)
+                               if _handoff else (False, "handoff unavailable"))
+        except Exception:
+            covered, reason = False, "handoff unavailable"
+        entries.append(_cov.CoverageEntry(
+            cls="injection", engine="python+handoff", depth=_cov.PATTERN,
+            status=_cov.COMPLETE if covered else _cov.UNSUPPORTED,
+            shapes_unsupported=[] if covered else
+                ["all CWE classes when deferral is unverified"],
+            notes=(f"deferred to Hydra: {reason}" if covered else
+                   f"security lane not emitted here and deferral is NOT "
+                   f"evidence-backed: {reason}. This lane is UNCOVERED by "
+                   f"both tools.")))
+        report = _cov.build_report(
+            tool="lich-core", target_path=path, language="python",
+            findings=merged, coverage=entries)
+        summary["analysis_status"] = report["analysis_status"]
+        summary["false_clean_risk"] = report["false_clean_risk"]
+        summary["clean"] = report["clean"]
+        summary["coverage"] = report["coverage"]
+        print(_cov.human_summary(report), file=sys.stderr)
+
     print(json.dumps(summary), file=sys.stderr)
     return 0
 

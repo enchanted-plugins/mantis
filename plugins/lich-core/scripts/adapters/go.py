@@ -10,12 +10,17 @@ Contract (brand invariants from CLAUDE.md):
     - Zero runtime deps on Lich's side. Staticcheck is optional in the
       target project's toolchain.
     - Security-framed rules (gosec G-series and the crypto SA1018 entry
-      enumerated under `security_defer_to_hydra`) NEVER map to M1.
-      Hydra R3 owns CWEs. We hard-code a guard that refuses to emit an
-      M1 flag for a rule whose bucket is `security_defer_to_hydra`, even
-      if a registry edit accidentally double-lists one.
+      enumerated under `security_defer_to_hydra`) do not map to M1 flags.
+      The deferral itself is now CAPABILITY-based, not branding-based: the
+      lane is only reported as covered when a Hydra analysis report actually
+      demonstrates coverage for this file (see handoff.py). With no such
+      evidence the lane is reported UNCOVERED rather than silently dropped,
+      because "Hydra owns CWEs" was previously asserted unconditionally and
+      created a gap when Hydra could not fire either.
     - Advisory only. Subprocess crash, timeout, or malformed JSON -> log
       to stderr as a single JSON object and return None / []; never raise.
+      Crucially, each of those states is now reported as a DISTINCT coverage
+      status, so a failed analysis can never be mistaken for a clean one.
     - Only the `correctness_m1` bucket routes to M1 flags in Slice A.
       `idiom_m7`, `complexity_m7`, `naming_m7`, `testability_m7` belong
       to M7 (Slice B) and are not emitted here.
@@ -39,6 +44,16 @@ from typing import Optional
 # Sibling-module import. The `scripts/` dir is injected onto sys.path by the
 # dispatcher and by the test harness.
 from m1_walker import Flag
+
+# Coverage contract (enchanter.analysis-report/v1). Repo-root shared module.
+_SHARED = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))),
+    "shared", "scripts")
+if _SHARED not in sys.path:
+    sys.path.insert(0, _SHARED)
+import coverage as cov  # noqa: E402
+import handoff  # noqa: E402
 
 
 LANG = "go"
@@ -128,10 +143,28 @@ def detect() -> Optional[str]:
     return shutil.which("staticcheck")
 
 
+def _default_timeout_s() -> int:
+    """Wall-clock budget for one staticcheck invocation.
+
+    The previous default was 5s. Measured on a cold module cache staticcheck
+    needs 40-98s, so 5s expired on essentially every real Go package and the
+    adapter reported `total: 0` — a timeout rendered as a clean result. The
+    default is now 120s, overridable via LICH_STATICCHECK_TIMEOUT_S for CI
+    budgets. Whatever the value, expiry is reported as DEGRADED coverage and
+    never as zero findings.
+    """
+    raw = os.environ.get("LICH_STATICCHECK_TIMEOUT_S", "")
+    try:
+        val = int(raw)
+        return val if val > 0 else 120
+    except (TypeError, ValueError):
+        return 120
+
+
 def run_staticcheck(
     file_path: str,
     bin_path: str,
-    timeout_s: int = 5,
+    timeout_s: Optional[int] = None,
 ) -> Optional[list[dict]]:
     """Invoke staticcheck on `file_path`, parse line-delimited JSON, and
     return the finding list.
@@ -142,12 +175,20 @@ def run_staticcheck(
     skipped with a stderr note; a parse that yields at least one valid
     finding still returns the list.
     """
+    if timeout_s is None:
+        timeout_s = _default_timeout_s()
     try:
         proc = subprocess.run(
             [bin_path, "-f", "json", file_path],
             capture_output=True,
             text=True,
             timeout=timeout_s,
+            # Analyzer output is UTF-8. Without an explicit encoding Python
+            # decodes with the host locale (cp1252 on Windows) and raises
+            # UnicodeDecodeError inside the subprocess reader thread, which
+            # can silently truncate or lose diagnostics.
+            encoding="utf-8",
+            errors="replace",
         )
     except subprocess.TimeoutExpired:
         print(
@@ -327,19 +368,48 @@ def findings_to_flags(
 # -------------------------------------------------------------------------
 
 
-def analyze(file_path: str) -> list[Flag]:
-    """Detect → run → map pipeline. Never returns None, never raises.
+def analyze_with_coverage(file_path: str):
+    """Detect → run → map pipeline, returning (flags, coverage_entries).
 
-    Contract mirrors other language adapters: caller gets a (possibly
-    empty) list of M1 flags and can rely on no exceptions escaping.
+    Every way this pipeline can produce zero flags is reported as a distinct
+    coverage status, because they mean entirely different things:
+
+        staticcheck absent        -> UNAVAILABLE  (nothing was analysed)
+        staticcheck timed out     -> DEGRADED     (analysis was cut short)
+        invocation/parse failure  -> DEGRADED     (fidelity lost)
+        rule registry unreadable  -> DEGRADED     (findings could not be mapped)
+        genuinely no findings     -> PARTIAL      (analysed; see notes)
+
+    Only the last is evidence about the code, and even then it is PARTIAL
+    rather than COMPLETE: this adapter routes only the `correctness_m1`
+    bucket and drops unmapped rule IDs, so it under-covers by design.
     """
+    def entry(status, notes, truncated=False):
+        return cov.CoverageEntry(
+            cls="correctness", engine="staticcheck", depth=cov.INTRAPROCEDURAL,
+            status=status,
+            shapes_supported=["staticcheck correctness_m1 bucket"],
+            shapes_unsupported=[
+                "security/CWE classes (routed away by security_defer_to_hydra)",
+                "rule IDs absent from the Go registry",
+                "idiom/complexity/naming (M7, not emitted here)",
+            ],
+            truncated=truncated, notes=notes,
+        )
+
     binary = detect()
     if binary is None:
-        return []
+        return [], [entry(
+            cov.UNAVAILABLE,
+            "staticcheck is not on PATH; no Go correctness analysis ran")]
+
     findings = run_staticcheck(file_path, binary)
     if findings is None:
-        # Advisory fallback — staticcheck present but invocation failed.
-        return []
+        return [], [entry(
+            cov.DEGRADED,
+            "staticcheck did not return parseable output (timeout, "
+            "invocation failure, or malformed JSON); analysis incomplete")]
+
     try:
         registry = load_registry()
     except (OSError, json.JSONDecodeError) as exc:
@@ -348,5 +418,53 @@ def analyze(file_path: str) -> list[Flag]:
                         "error": str(exc)}),
             file=sys.stderr,
         )
-        return []
-    return findings_to_flags(findings, registry, file_path)
+        return [], [entry(
+            cov.DEGRADED,
+            f"Go rule registry unreadable ({exc}); staticcheck ran but its "
+            f"findings could not be mapped")]
+
+    flags = findings_to_flags(findings, registry, file_path)
+
+    # Security lane: report what was dropped and whether dropping it was
+    # backed by evidence of Hydra coverage, rather than by branding.
+    dropped = [
+        f for f in findings
+        if (registry.get(f.get("code") or "") or {}).get("route") == "defer"
+    ]
+    covered, reason = handoff.may_suppress("injection", file_path)
+    if covered:
+        sec_status, sec_note = cov.COMPLETE, f"deferred to Hydra: {reason}"
+    else:
+        sec_status = cov.UNSUPPORTED
+        sec_note = (
+            f"{len(dropped)} security-bucket finding(s) suppressed by "
+            f"security_defer_to_hydra, but deferral is NOT evidence-backed: "
+            f"{reason}. This lane is UNCOVERED by both tools.")
+    sec_entry = cov.CoverageEntry(
+        cls="injection", engine="staticcheck+handoff", depth=cov.PATTERN,
+        status=sec_status,
+        shapes_supported=[],
+        shapes_unsupported=["all CWE classes when deferral is unverified"],
+        notes=sec_note,
+    )
+
+    return flags, [
+        entry(
+            cov.PARTIAL,
+            f"staticcheck completed; {len(findings)} raw finding(s), "
+            f"{len(flags)} mapped to M1."),
+        sec_entry,
+    ]
+
+
+def analyze(file_path: str) -> list[Flag]:
+    """Detect → run → map pipeline. Never returns None, never raises.
+
+    Contract mirrors other language adapters: caller gets a (possibly
+    empty) list of M1 flags and can rely on no exceptions escaping.
+
+    NOTE: this signature cannot express coverage, so an empty list from it is
+    NOT evidence the file is clean. Prefer `analyze_with_coverage`.
+    """
+    flags, _coverage = analyze_with_coverage(file_path)
+    return flags
