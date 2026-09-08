@@ -110,6 +110,29 @@ class TestHydraCoverageStates(_Tmp):
         r = run_hydra(p)
         self.assertGreater(len(r["findings"]), 0)
 
+    def test_both_repos_agree_on_the_schema_constant(self):
+        """The two coverage.py copies live in independent repositories.
+
+        SCHEMA is the only compatibility contract between them, so pin it
+        against what Hydra actually emits rather than trusting the copies to
+        stay in sync by hand.
+        """
+        p = self.write("a.go", "package main\n\nfunc main() {}\n")
+        self.assertEqual(run_hydra(p)["schema"], cov.SCHEMA)
+
+    def test_both_repos_agree_on_the_status_vocabulary(self):
+        """A status Hydra emits must be one Lich's contract understands."""
+        vocab = {cov.COMPLETE, cov.PARTIAL, cov.DEGRADED,
+                 cov.UNSUPPORTED, cov.UNAVAILABLE}
+        for name, body in (("a.go", "package main\n"),
+                           ("x.c", 'char *p = "x";\n'),
+                           ("big.go", "package main\n" + "// f\n" * 2200)):
+            with self.subTest(file=name):
+                r = run_hydra(self.write(name, body))
+                self.assertIn(r["analysis_status"], vocab)
+                for entry in r["coverage"]:
+                    self.assertIn(entry["status"], vocab)
+
 
 class TestLichCoverageStates(_Tmp):
     """Lich must distinguish a missing analyser from a clean file."""
