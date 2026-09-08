@@ -58,6 +58,11 @@ try:
 except Exception:  # pragma: no cover — advisory
     _cov = None
 
+try:
+    import handoff as _handoff  # type: ignore  # noqa: E402
+except Exception:  # pragma: no cover — advisory
+    _handoff = None
+
 
 def _summary(flags) -> dict:
     by_rule: dict[str, int] = {}
@@ -153,8 +158,11 @@ def main(argv: list[str]) -> int:
 
     # -- Substrate 1: ruff fast-path (optional) ---------------------------
     ruff_flags: list[Flag] = []
+    py_notes: list[str] = []
     ruff_path = ruff_adapter.detect_ruff()
     substrate_tag = "ast-only"
+    if ruff_path is None:
+        py_notes.append("ruff not installed; only the 3 stdlib-ast PY-M1 rules ran")
     if ruff_path is not None:
         substrate_tag = "ruff+ast"
         findings = ruff_adapter.run_ruff(path, ruff_path)
@@ -174,6 +182,7 @@ def main(argv: list[str]) -> int:
                     file=sys.stderr,
                 )
                 ruff_flags = []
+                py_notes.append("ruff registry unreadable; ruff findings unmapped")
 
     # -- Substrate 2: stdlib ast walker (always) --------------------------
     ast_flags: list[Flag] = []
@@ -184,6 +193,7 @@ def main(argv: list[str]) -> int:
             json.dumps({"status": "substrate-parse-failed", "file": path}),
             file=sys.stderr,
         )
+        py_notes.append("source failed to parse; the ast walker analysed nothing")
         # Gauss Accumulation — parse failure is a version-drift signal
         # (or the source predates the current AST substrate).
         if _learnings is not None:
@@ -226,6 +236,48 @@ def main(argv: list[str]) -> int:
     summary["written_to"] = DEFAULT_LOG
     summary["lines_written"] = written
     summary["substrate"] = substrate_tag
+
+    # Coverage for the PYTHON lane. This path previously emitted none at all,
+    # so a .py file with zero flags was indistinguishable from an unanalysed
+    # one - the same false-clean defect the adapters had.
+    if _cov is not None:
+        parse_failed = any("failed to parse" in n for n in py_notes)
+        entries = [_cov.CoverageEntry(
+            cls="correctness", engine=substrate_tag, depth=_cov.AST,
+            status=_cov.DEGRADED if parse_failed else _cov.PARTIAL,
+            shapes_supported=["stdlib-ast interval/nullability/container-shape",
+                              "ruff correctness rules" if ruff_path else
+                              "(ruff absent)"],
+            shapes_unsupported=[
+                "cross-function propagation",
+                "security/CWE classes (deferred; see handoff)",
+                "ruff rule ids absent from the registry",
+            ],
+            notes="; ".join(py_notes) or
+                  "ast walker + ruff completed; under-covers by design")]
+        try:
+            covered, reason = (_handoff.may_suppress("injection", path)
+                               if _handoff else (False, "handoff unavailable"))
+        except Exception:
+            covered, reason = False, "handoff unavailable"
+        entries.append(_cov.CoverageEntry(
+            cls="injection", engine="python+handoff", depth=_cov.PATTERN,
+            status=_cov.COMPLETE if covered else _cov.UNSUPPORTED,
+            shapes_unsupported=[] if covered else
+                ["all CWE classes when deferral is unverified"],
+            notes=(f"deferred to Hydra: {reason}" if covered else
+                   f"security lane not emitted here and deferral is NOT "
+                   f"evidence-backed: {reason}. This lane is UNCOVERED by "
+                   f"both tools.")))
+        report = _cov.build_report(
+            tool="lich-core", target_path=path, language="python",
+            findings=merged, coverage=entries)
+        summary["analysis_status"] = report["analysis_status"]
+        summary["false_clean_risk"] = report["false_clean_risk"]
+        summary["clean"] = report["clean"]
+        summary["coverage"] = report["coverage"]
+        print(_cov.human_summary(report), file=sys.stderr)
+
     print(json.dumps(summary), file=sys.stderr)
     return 0
 
