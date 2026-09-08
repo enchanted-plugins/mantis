@@ -38,15 +38,45 @@ UNAVAILABLE = "unavailable"
 _SCHEMA_PREFIX = "enchanter.analysis-report/"
 
 
+def _same_target(doc: dict, target_file: str) -> bool:
+    """True when the report actually describes the file under analysis.
+
+    Without this check a report about ANY file suppresses the lane for EVERY
+    file, which is how the first version of this module behaved in
+    single-report mode.
+    """
+    path = ((doc.get("target") or {}).get("path")) or ""
+    if not path:
+        return False
+    return (os.path.basename(os.path.abspath(path))
+            == os.path.basename(os.path.abspath(target_file)))
+
+
 def _load_report(target_file: str) -> Optional[dict]:
-    """Locate a Hydra report describing `target_file`, if one exists."""
+    """Locate a Hydra report describing `target_file`, if one exists.
+
+    TRUST BOUNDARY. The report is read from a path the operator supplies via
+    LICH_HYDRA_REPORT / LICH_HYDRA_REPORT_DIR. Its contents are NOT
+    authenticated: anything able to write that file can assert `complete`
+    coverage and thereby suppress this lane's disclosure. That is the same
+    false-clean failure this module exists to prevent, reintroduced one layer
+    up, so treat those paths as trusted configuration - never point them at a
+    directory writable by the code under review, by a crawl target, or by any
+    untrusted process. Suppression is additionally restricted to reports whose
+    target matches the file being analysed, and every decision names its
+    source so it can be audited after the fact.
+    """
     direct = os.environ.get("LICH_HYDRA_REPORT")
     if direct and os.path.isfile(direct):
         try:
             with open(direct, encoding="utf-8") as fh:
                 doc = json.load(fh)
-            if str(doc.get("schema", "")).startswith(_SCHEMA_PREFIX):
-                return doc
+            if not str(doc.get("schema", "")).startswith(_SCHEMA_PREFIX):
+                return None
+            if not _same_target(doc, target_file):
+                return None
+            doc["_source"] = direct
+            return doc
         except (OSError, ValueError):
             return None
 
@@ -69,6 +99,7 @@ def _load_report(target_file: str) -> Optional[dict]:
                 continue
             path = ((doc.get("target") or {}).get("path")) or ""
             if os.path.basename(os.path.abspath(path)) == want:
+                doc["_source"] = os.path.join(dirpath, name)
                 return doc
     return None
 
@@ -97,7 +128,9 @@ def hydra_coverage(defect_class: str, target_file: str) -> Tuple[str, str]:
             continue
         status = entry.get("status")
         if status == "complete" and not entry.get("truncated"):
-            return COVERED, f"Hydra reports complete coverage of {cls}"
+            return COVERED, (
+                f"Hydra reports complete coverage of {cls} "
+                f"(unauthenticated report: {doc.get('_source', 'unknown')})")
         if status in ("partial", "degraded"):
             return (
                 PARTIAL if status == "partial" else DEGRADED,

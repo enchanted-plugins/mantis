@@ -169,6 +169,34 @@ class TestCapabilityHandoff(unittest.TestCase):
         self._report("complete", truncated=True)
         self.assertFalse(handoff.may_suppress("injection", "x.go")[0])
 
+    def test_report_about_a_different_file_does_not_authorise(self):
+        """A report about file A must not suppress the lane for file B.
+
+        The first version of this module skipped the target check entirely in
+        single-report mode, so ONE forged or stale report suppressed the
+        security lane for EVERY file analysed. Found by adversarially
+        attacking the repair itself.
+        """
+        self._report("complete")            # report targets x.go
+        allowed, reason = handoff.may_suppress("injection", "victim.go")
+        self.assertFalse(allowed, reason)
+
+    def test_matching_target_still_authorises(self):
+        """The target check must not over-block the legitimate case."""
+        self._report("complete")
+        self.assertTrue(handoff.may_suppress("injection", "x.go")[0])
+
+    def test_suppression_reason_names_its_unauthenticated_source(self):
+        """Every suppression must be auditable after the fact.
+
+        The report is operator-supplied and NOT authenticated, so the decision
+        records which file authorised it and says so plainly.
+        """
+        path = self._report("complete")
+        _, reason = handoff.may_suppress("injection", "x.go")
+        self.assertIn("unauthenticated", reason)
+        self.assertIn(os.path.basename(path), reason)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
