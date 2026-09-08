@@ -4,7 +4,7 @@
     "name": "enchanter-ai"
   },
   "metadata": {
-    "description": "Code review for AI-assisted development — catches runtime failures that pass compile time, learns your preferences with Bayesian uncertainty, judges quality with a debiased LLM rubric.",
+    "description": "Code review for AI-assisted development \u2014 catches runtime failures that pass compile time, learns your preferences with Bayesian uncertainty, judges quality with a debiased LLM rubric.",
     "version": "1.0.0"
   },
   "plugins": [
@@ -17,7 +17,7 @@
     {
       "name": "lich-core",
       "source": "./plugins/lich-core",
-      "description": "M1 Cousot Interval Propagation + M2 Falleri Structural Diff. The static-analysis substrate that flags division-by-zero, null deref, OOB, overflow via abstract interpretation, and isolates semantic edits via GumTree AST diffing. Paired with lich-sandbox (M5) for confirmation.",
+      "description": "M1 Cousot Interval Propagation + M2 Falleri Structural Diff. Flags division-by-zero, null deref, OOB and overflow via abstract interpretation, and isolates semantic edits via AST diffing. LANGUAGE TRUTH: the M1 walker is implemented natively for PYTHON only (stdlib ast). Other languages are adapters over external analyzers - Go is a staticcheck wrapper with no interval engine, so its findings are exactly staticcheck's. Every adapter reports coverage, so a missing or timed-out analyzer is reported as unavailable/degraded and never as a clean result. Paired with lich-sandbox (M5) for confirmation.",
       "category": "plugin"
     },
     {
